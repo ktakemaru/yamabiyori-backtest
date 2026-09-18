@@ -1,0 +1,28 @@
+200 https://api.open-meteo.com/data/ecmwf_ifs025/static/meta.json
+   {"chunk_time_length":104,"crs_wkt":"GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[-90.0,-180.0,90.0,179.75]]]","data_end_time":17909
+200 https://api.open-meteo.com/data/jma_msm/static/meta.json
+   {"chunk_time_length":114,"crs_wkt":"GEOGCRS[\"WGS 84\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433]\n    USAGE[\n        SCOPE[\"grid\"],\n        BBOX[22.4,120.0,47.6,150.0]]]","data_end_time":17898660
+200 https://api.open-meteo.com/data/ecmwf_ifs/static/meta.json
+   {"chunk_time_length":504,"crs_wkt":"GEOGCRS[\"Reduced Gaussian Grid\",\n    DATUM[\"World Geodetic System 1984\",\n        ELLIPSOID[\"WGS 84\",6378137,298.257223563]],\n    CS[ellipsoidal,2],\n        AXIS[\"latitude\",north],\n        AXIS[\"longitude\",east],\n        ANGLEUNIT[\"degree\",0.0174532925199433],\n    REMARK[\"Reduced Gaussian Grid O1280 (ECMWF)\"],\n    USAGE[\n        SCOPE[\"gri
+500 https://api.open-meteo.com/data/ecmwf_ifs025/meta.json
+   {"error":true,"reason":"Something went wrong."}
+404 https://api.open-meteo.com/v1/meta?models=ecmwf_ifs025
+   {"error":true,"reason":"Not Found"}
+500 https://api.open-meteo.com/data/jma_msm/meta.json
+   {"reason":"Something went wrong.","error":true}
+### probe/raw/meta_ecmwf_ifs025_static_meta.json
+  chunk_time_length: 104
+  data_end_time: 1790996400  = 2026-10-03T03:00:00+00:00
+  last_run_availability_time: 1789717433  = 2026-09-18T07:43:53+00:00
+  last_run_initialisation_time: 1789689600  = 2026-09-18T00:00:00+00:00
+  last_run_modification_time: 1789717250  = 2026-09-18T07:40:50+00:00
+  temporal_resolution_seconds: 10800
+  update_interval_seconds: 21600
+### probe/raw/meta_jma_msm_static_meta.json
+  chunk_time_length: 114
+  data_end_time: 1789866000  = 2026-09-20T01:00:00+00:00
+  last_run_availability_time: 1789734751  = 2026-09-18T12:32:31+00:00
+  last_run_initialisation_time: 1789722000  = 2026-09-18T09:00:00+00:00
+  last_run_modification_time: 1789734597  = 2026-09-18T12:29:57+00:00
+  temporal_resolution_seconds: 3600
+  update_interval_seconds: 10800

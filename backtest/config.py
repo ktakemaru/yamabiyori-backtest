@@ -32,7 +32,7 @@ AMEDAS_STATIONS = {
     "48216": "菅平", "42221": "田代", "42121": "草津", "48531": "開田高原", "48466": "奈川",
     "48331": "軽井沢", "49256": "山中", "48156": "長野",
 }
-AMEDAS_ELEMENTS = ["sun10m", "sun1h", "precipitation1h", "temp", "wind", "windDirection", "humidity"]
+AMEDAS_ELEMENTS = ["sun10m", "sun1h", "precipitation1h", "temp", "wind", "windDirection", "humidity", "pressure"]  # pressure: 官署と富士山のみ (正時のみ値あり)
 
 MODELS = ["jma_msm", "ecmwf_ifs025"]
 

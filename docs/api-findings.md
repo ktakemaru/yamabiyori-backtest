@@ -318,3 +318,59 @@ MSM について day1/day2 しか持っていない、と結論する。day2 が
   つまり 13:10Z 時点では両モデルとも 00Z ランがまだ最新 (12Z ランは未反映)。スロット取得時刻とこの推定でリードを計算する。
 - jma_msm の Forecast API では `precipitation_probability` / `wind_gusts_10m` / `cape` が全 null (本体の注記と一致)。
 - アメダス map (毎正時) は 13 観測所 × 7 要素で 1 時間 ≈ 1.5KB (gzip 後の日次ファイルで ≈ 10KB/日)。
+
+---
+
+## 10. Phase 2 レビュー対応・Phase 3 (Track B) で確認したこと (2026-09-18 深夜)
+
+### 10.1 Open-Meteo メタデータ API
+
+- **エンドポイント (実測で確定)**: `https://api.open-meteo.com/data/<model>/static/meta.json`
+  (`ecmwf_ifs025`, `jma_msm`, `ecmwf_ifs` で HTTP 200)。`.../data/<model>/meta.json` は 500、`/v1/meta?models=` は 404。
+- 返るキー (実測): `last_run_initialisation_time`, `last_run_modification_time`, `last_run_availability_time`,
+  `temporal_resolution_seconds`, `update_interval_seconds`, `data_end_time` (いずれも UNIX 秒), `chunk_time_length`, `crs_wkt`。
+- 2026-09-18 12:4x UTC の値: ecmwf_ifs025 = 初期時刻 **00Z**、修正 07:40:50Z、公開 07:43:53Z、**temporal_resolution 10800s (3h)**、
+  update_interval 21600s、data_end 2026-10-03 03Z。jma_msm = 初期時刻 **09Z**、修正 12:29:57Z、公開 12:32:31Z、
+  temporal_resolution 3600s、update_interval 10800s、data_end 2026-09-20 01Z (= 09Z + 40h)。
+- **Forecast API のレスポンスは複数ランの継ぎ足し**: 同時刻の jma_msm スナップショット (§9.4) は 00Z から 79h 非 null
+  (= 00Z ランの 78h ホライズン) だったが、メタデータの最新ランは 09Z (39h ラン, data_end 09-20 01Z)。
+  つまり 09Z ランで上書きされる範囲より先の時刻は古い 00Z ランの値がそのまま残っている。
+  「1 スナップショット = 1 ラン」ではないので、Forecast API スナップショットからのリード計算は近似にしかならない。
+  時間単位で厳密なリードは Single Runs (Track B) で扱う。
+- 収集側の対応: スナップショット直前・直後にメタデータを `<HH>Z_meta_before/after.json.gz` に保存。
+  `last_run_modification_time` から 10 分未満なら待つ。cron (`20 */3`) は ECMWF 00/06/12/18Z の公開 (+約7.7h) と
+  MSM 3 時間ごとの公開 (+約3.5h) に対し 10 分以上離れているが、遅延が重なった場合は上記の待機で吸収する。
+
+### 10.2 富士山 (50066) の観測要素の再確認
+
+- 収集済み 8 日分 (2026-09-11 00:00〜09-18 22:00 JST、191 正時) の `sun1h` は **190 正時が `[null, 5]`、1 正時が `[null, 6]`**。
+  他の高標高地点 (野辺山・奥日光・白馬) は同時刻に `[0.0, 0]` 等の値がある → 抽出側の問題ではない。
+- `amedastable.json` の 富士山 `elems` = `10001011`。実測で対応が取れている 4 文字目 (日照) が **0** = 日照は観測要素に含まれていない。
+  少なくとも 2026-09 の 8 日間は恒常的に無観測で、機器障害か観測終了かはこの窓では判別できない (未確認)。
+- 一方 **湿度と気圧は取れる**: 正時の map JSON と point JSON に `humidity` (例 100%) と `pressure` (例 653.4hPa) がある。
+  10 分値 (正時以外) では両方 null。→ 収集要素に `pressure` を追加し、8 日分を再収集した (旧ファイルは
+  `data/raw_superseded/obs_amedas_without_pressure/`)。
+- 風は map/point とも要素自体が無い (2004-08 の常駐終了時に風向風速・全天日射の観測を終了、というご指摘と整合)。
+
+### 10.3 Single Runs API の運用上の性質 (Track B のフェッチで実測)
+
+- **5 地点同時 × 21 列 (RH/GPH/雲量 @1000/925/850/700/600hPa + 地上 6 変数)** で 1 リクエスト
+  ≈ 60〜350KB、初回は **20〜230 秒** (generationtime 5〜90 秒)。同じランを再要求すると数 ms〜数秒。
+  サーバ側の cold read で HTTP 500 や HTTP 200 + 非 JSON 本文 `Unexpected error while streaming data: timeoutReached`
+  が出るが、時間をおいて再試行すると成功する。
+- **`jma_msm` は Single Runs では 900/800hPa が全 null** (両モデルとも)。通常 Forecast API では jma_msm が
+  1000〜600 の全面を返す (本体 core.py の注記) のと異なる。→ Track B の再現は 1000/925/850/700/600 の 5 面で行う
+  (本体が MSM 帯で使う 900/800 面は再現できない = Track B の MSM 帯山頂雲量は本体の値と一致しない可能性がある)。
+- **存在しないラン**は `run=` 指定が 400 で返る場合と、HTTP 200 + 非 JSON `...modelRunUnavailable(model: ..., run: ...)`
+  で返る場合がある (2026-06-11T00Z は両モデルとも後者、2026-06-11T12Z / 06-12T00Z は存在)。フェッチャは両方を
+  「ラン無し」として `.missing` マーカーを残す。
+- 取得ペース: 2 モデル並行で **約 1 ラン/2〜5 分/モデル**。2026-06-11〜09-17 の 00Z (99 ラン × 2) は数時間かかる。
+  フェッチは再開可能 (`python -m backtest.fetch_single_runs --start ... --end ... --hours 0`)。
+
+### 10.4 既存ハーネスの観測キャッシュ (読み取りのみ)
+
+`C:/mountain-weather/tools/backtest/cache/amedas/<prec>_<block>/<date>.json` に JMA etrn (過去統計) 由来の毎時値がある:
+6 地点 (白馬 48_396・野辺山 48_415・奥日光 41_47690・菅平 48_992・軽井沢 48_47622・河口湖 49_47640)、
+2026-01-15〜02-28 と 2026-06-11〜09-14、要素 temp/dewpoint/humidity/precip/wind/sun_hr (+官署は気圧等)。
+`obs_import.py` がこれを `observation_long.parquet` に取り込む (source=etrn_cache)。時刻は「hour N = N:00 JST に終わる 1 時間」、
+hour 24 は翌日 00:00 JST として扱った。

@@ -80,7 +80,7 @@ C:\yamabiyori-backtest\
 | site_id | 地点 | lat, lon | 標高 | ペア観測所 (Phase 2) | 選定理由 |
 |---|---|---|---|---|---|
 | karamatsu | 唐松岳 | 36.7595, 137.7503 | 2696m | 白馬 48141 (703m, 12km) | 指定。本体の基準山 |
-| fuji | 富士山(剣ヶ峰) | 35.3606, 138.7274 | 3776m | 富士山 50066 (3775m; temp のみ実測値あり) | **唯一の山頂実況**。気温を標高差なしで検証できる。日照 (sun1h) は 2026-09 時点で欠測フラグ (api-findings §9.4) |
+| fuji | 富士山(剣ヶ峰) | 35.3606, 138.7274 | 3776m | 富士山 50066 (3775m; 気温・湿度・気圧) | **唯一の山頂実況**。気温と、**気圧面 RH の実測値として湿度** (Track B ①) を検証できる。日照は 2026-09 の 8 日間全て欠測 (api-findings §10.2)。**風は 2004-08 の常駐終了時に観測終了 → 山頂の風の実況は存在しない。風の検証地点としては期待しない** |
 | akadake | 八ヶ岳(赤岳) | 35.9722, 138.3672 | 2899m | 野辺山 48571 (1350m, フル要素) | フル要素で最も高い観測所 |
 | nikko_shirane | 日光白根山 | 36.7983, 139.3742 | 2578m | 奥日光 41166 (1292m, 官署: 視程・天気あり) | 官署クラス、雲量代理を日照以外でも検討できる |
 | adatara | 安達太良山 | 37.6256, 140.2864 | 1700m | 鷲倉 36196 (1220m, 5.3km, フル要素) | 全76座で最寄りフル要素観測所との距離・標高差 (480m) が最小。東北の格子 |
@@ -107,7 +107,7 @@ Phase 2 で収集するアメダス観測所 (`config.AMEDAS_STATIONS`, 13 地�
 | 0 (済) | API 実測、本体構造把握、設計 | api-findings.md, design.md |
 | **1** | Previous Runs から 5 地点 × 12 ヶ月 × 2 モデルを一括取得 → Parquet。再実行可能、生JSON保存、単体テスト | `data/parquet/forecast_long.parquet`, サマリ |
 | **2** (実装済) | GitHub Actions で 3 時間ごとに (a) アメダス毎正時 map から 13 観測所を抽出 → `data/obs/amedas/<JST日>.json.gz`、(b) Forecast API の 16 日予報スナップショット (層別雲量入り、6h スロット) → `data/snapshots/forecast/<UTC日>/<HH>Z_<model>.json.gz`。`check_collection.py` で欠損確認 | 生 JSON (パースは Phase 3) |
-| 3 | (a) `observation_long` / スナップショットのパース (取得時刻と最後の非null時刻からラン初期時刻・リードを推定, api-findings §9.4)、(b) 評価: リード別 MAE/bias、2値指標、季節別、(c) Track B (Single Runs + 気圧面) で本体の山頂内挿 (RH 由来雲量, §9.2) の再現と 8日以上先 | レポート |
+| **3** (進行中) | Track B: Single Runs で気圧面 (RH/GPH/雲量) を取得 (`fetch_single_runs.py`, 00Z, 2026-06-11〜)、本体の内挿ロジックを移植して**同一入力で同一出力を確認** (`summit_interp.py`, `tests/test_summit_interp.py`)、`observation_long` (アメダス map + 既存 etrn キャッシュ)、①/②③ の分離評価 (`trackb_eval.py`) → `docs/track-b-findings.md` | track-b-findings.md |
 | 4 | MOS: 季節 (月) と地点を特徴量にした線形補正。まず気温、次に雲量 2値の閾値較正 | 補正係数テーブル |
 | 5 | 本体への還元案 (本体は別途手動で反映、このリポジトリからは push しない) | 提案文書 |
 

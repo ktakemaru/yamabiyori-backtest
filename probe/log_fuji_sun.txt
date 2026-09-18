@@ -1,0 +1,21 @@
+富士山 sun1h の値分布 (191正時): {'[None, 5]': 190, '[None, 6]': 1}
+富士山 temp のフラグ分布: {' 0]': 190, ' 6]': 1}
+例: [(('2026-09-11.json.gz', '0000'), {'humidity': [100, 0], 'sun10m': [None, 5], 'sun1h': [None, 5], 'temp': [6.9, 0]}), (('2026-09-11.json.gz', '0100'), {'humidity': [100, 0], 'sun10m': [None, 5], 'sun1h': [None, 5], 'temp': [6.9, 0]})]
+2026-09-15 12:00 JST: {'50066': [None, 5], '48571': [0.0, 0], '41166': [0.0, 0], '48141': [0.0, 0]}
+latest_time: 2026-09-18T22:20:00+09:00
+point 50066 2026-09-18 21: HTTP 200
+   keys: ['prefNumber', 'observationNumber', 'pressure', 'temp', 'humidity', 'snow1h', 'snow6h', 'snow12h', 'snow24h', 'sun10m', 'sun1h', 'maxTempTime', 'maxTemp', 'minTempTime', 'minTemp', 'gustTime']
+   20260918210000 {'temp': [4.1, 0], 'humidity': [100, 0], 'pressure': [653.4, 0], 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+   20260918211000 {'temp': [4.1, 0], 'humidity': None, 'pressure': None, 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+   20260918222000 {'temp': [4.0, 0], 'humidity': None, 'pressure': None, 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+point 50066 2026-09-17 21: HTTP 200
+   keys: ['prefNumber', 'observationNumber', 'pressure', 'temp', 'humidity', 'snow1h', 'snow6h', 'snow12h', 'snow24h', 'sun10m', 'sun1h', 'maxTempTime', 'maxTemp', 'minTempTime', 'minTemp', 'gustTime']
+   20260917210000 {'temp': [1.4, 0], 'humidity': [92, 0], 'pressure': [652.2, 0], 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+   20260917211000 {'temp': [1.4, 0], 'humidity': None, 'pressure': None, 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+   20260917235000 {'temp': [1.6, 0], 'humidity': None, 'pressure': None, 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+point 50066 2026-09-14 21: HTTP 200
+   keys: ['prefNumber', 'observationNumber', 'pressure', 'temp', 'humidity', 'snow1h', 'snow6h', 'snow12h', 'snow24h', 'sun10m', 'sun1h', 'maxTempTime', 'maxTemp', 'minTempTime', 'minTemp', 'gustTime']
+   20260914210000 {'temp': [4.2, 0], 'humidity': [100, 0], 'pressure': [650.6, 0], 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+   20260914211000 {'temp': [4.3, 0], 'humidity': None, 'pressure': None, 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+   20260914235000 {'temp': [3.9, 0], 'humidity': None, 'pressure': None, 'normalPressure': None, 'sun10m': [None, 5], 'sun1h': [None, 5], 'wind': None}
+point 48141 (白馬) keys: ['prefNumber', 'observationNumber', 'temp', 'humidity', 'sun10m', 'sun1h', 'precipitation10m', 'precipitation1h', 'precipitation3h', 'precipitation24h', 'windDirection', 'wind', 'maxTempTime', 'maxTemp', 'minTempTime', 'minTemp', 'gustTime', 'gustDirection', 'gust']

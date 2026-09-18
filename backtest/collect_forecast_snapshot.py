@@ -9,6 +9,12 @@ Previous Runs API では cloud_cover_low/mid/high の過去リードが全 null 
 同じスロットのファイルが既にあれば取らない (二重取得しない)。取り損ねたスロットは事後には取れない
 (Forecast API は「今」しか返さない) ので、欠損としてそのまま残る。
 
+ラン初期時刻は Open-Meteo のメタデータ API `https://api.open-meteo.com/data/<model>/static/meta.json`
+(api-findings §10; リクエスト制限にカウントされない) から取る。スナップショットの直前と直後に両モデルの
+メタデータを取り、`<HH>Z_meta_before.json.gz` / `<HH>Z_meta_after.json.gz` に生のまま保存する。
+直前と直後で last_run_initialisation_time が一致していれば、その間に取ったスナップショットのラン初期時刻は確定。
+last_run_modification_time から 10 分経っていなければ (全サーバへの反映待ち、公式推奨) 待ってから取る。
+
     python -m backtest.collect_forecast_snapshot
 """
 import argparse
@@ -26,6 +32,8 @@ from . import config
 log = logging.getLogger(__name__)
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+META_URL = "https://api.open-meteo.com/data/{model}/static/meta.json"
+META_SETTLE_SECONDS = 600   # last_run_modification_time からこれだけ待つ (公式推奨 10 分)
 SNAPSHOT_DIR = config.DATA_DIR / "snapshots" / "forecast"
 SLOT_HOURS = 6
 SLOT_DELAY_HOURS = 3   # ランの配信遅れを見込んで、実行時刻の3時間前を含むスロットを取る
@@ -86,6 +94,44 @@ def take_snapshot(session: requests.Session, slot: datetime, model: str, sites=N
     return path
 
 
+def meta_path(slot: datetime, phase: str, snapshot_dir: Path = SNAPSHOT_DIR) -> Path:
+    return snapshot_dir / f"{slot:%Y-%m-%d}" / f"{slot:%H}Z_meta_{phase}.json.gz"
+
+
+def fetch_metadata(session: requests.Session, models=None) -> dict:
+    """モデルごとの meta.json を生のまま返す。失敗したモデルは {"error": ...}。"""
+    out = {}
+    for model in models or config.MODELS:
+        try:
+            r = session.get(META_URL.format(model=model), timeout=30)
+            out[model] = r.json() if r.status_code == 200 else {"error": True, "status": r.status_code, "body": r.text[:200]}
+        except (requests.RequestException, ValueError) as e:
+            out[model] = {"error": True, "reason": str(e)}
+    return out
+
+
+def save_metadata(slot: datetime, phase: str, meta: dict, snapshot_dir: Path = SNAPSHOT_DIR) -> Path:
+    path = meta_path(slot, phase, snapshot_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    env = {"slot_utc": slot.isoformat(), "phase": phase,
+           "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "models": meta}
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        json.dump(env, f, ensure_ascii=False)
+    return path
+
+
+def seconds_until_settled(meta: dict, now: datetime = None) -> float:
+    """last_run_modification_time + META_SETTLE_SECONDS までの残り秒 (最大値をモデル間で取る)。"""
+    now = now or datetime.now(timezone.utc)
+    wait = 0.0
+    for m in meta.values():
+        t = m.get("last_run_modification_time") if isinstance(m, dict) else None
+        if isinstance(t, (int, float)):
+            settled = datetime.fromtimestamp(t, timezone.utc) + timedelta(seconds=META_SETTLE_SECONDS)
+            wait = max(wait, (settled - now).total_seconds())
+    return wait
+
+
 def load_snapshot(path: Path) -> dict:
     with gzip.open(path, "rt", encoding="utf-8") as f:
         return json.load(f)
@@ -96,6 +142,17 @@ def collect(session: requests.Session = None, now: datetime = None, snapshot_dir
     session = session or requests.Session()
     slot = slot_for(now or datetime.now(timezone.utc))
     saved, skipped, errors = [], [], []
+    todo = [m for m in config.MODELS if not snapshot_path(slot, m, snapshot_dir).exists()]
+    if not todo:
+        log.info("all snapshots for slot %s exist", slot.isoformat())
+        return {"slot_utc": slot.isoformat(), "saved": [], "skipped": list(config.MODELS), "errors": []}
+    meta_before = fetch_metadata(session)
+    wait = seconds_until_settled(meta_before)
+    if wait > 0:
+        log.info("last_run_modification_time is recent; waiting %.0fs for all servers to update", wait)
+        time.sleep(min(wait, META_SETTLE_SECONDS))
+        meta_before = fetch_metadata(session)
+    save_metadata(slot, "before", meta_before, snapshot_dir)
     for model in config.MODELS:
         try:
             p = take_snapshot(session, slot, model, snapshot_dir=snapshot_dir)
@@ -106,7 +163,15 @@ def collect(session: requests.Session = None, now: datetime = None, snapshot_dir
         (saved if p else skipped).append(model)
         if p:
             time.sleep(sleep_seconds)
-    return {"slot_utc": slot.isoformat(), "saved": saved, "skipped": skipped, "errors": errors}
+    meta_after = fetch_metadata(session)
+    save_metadata(slot, "after", meta_after, snapshot_dir)
+    init = {m: (meta_before.get(m, {}).get("last_run_initialisation_time"),
+                meta_after.get(m, {}).get("last_run_initialisation_time")) for m in config.MODELS}
+    for m, (b, a) in init.items():
+        if b != a:
+            log.warning("%s: run changed during snapshot (before=%s after=%s); init time ambiguous", m, b, a)
+    return {"slot_utc": slot.isoformat(), "saved": saved, "skipped": skipped, "errors": errors,
+            "run_init_before_after": init}
 
 
 def main(argv=None):

@@ -30,8 +30,8 @@ def test_extract_keeps_only_target_stations_and_elements(amedas_map):
     assert set(out) <= set(config.AMEDAS_STATIONS)
     assert "48141" in out and "50066" in out          # 白馬, 富士山
     assert out["48141"]["temp"] == [17.6, 0]           # 実レスポンスの値そのまま [値, 品質フラグ]
-    assert set(out["48141"]) == set(config.AMEDAS_ELEMENTS)
-    assert set(out["50066"]) == {"temp", "sun10m", "sun1h"}   # 富士山は temp と sun のみ観測
+    assert set(out["48141"]) == set(config.AMEDAS_ELEMENTS) - {"pressure"}   # 白馬 (アメダス) は気圧なし
+    assert set(out["50066"]) == {"temp", "sun10m", "sun1h"}   # 10分値マップ (21:10) では富士山は temp と sun のみ; 湿度・気圧は正時のみ
     assert "11001" not in out                          # 対象外 (宗谷岬) は落ちる
 
 
@@ -181,3 +181,46 @@ def test_check_collection_reports_gaps(tmp_path):
             f.write("{}")
     lines, problems = check_collection.check_snapshots(0, now, snap)
     assert problems == ["snapshot missing 2026-09-18 06Z ecmwf_ifs025"]
+
+
+# ---- メタデータ API (修正1) ----
+
+META_ECMWF = {"last_run_initialisation_time": 1789689600, "last_run_modification_time": 1789717250,
+              "last_run_availability_time": 1789717433, "temporal_resolution_seconds": 10800,
+              "update_interval_seconds": 21600, "data_end_time": 1790996400}
+META_MSM = {"last_run_initialisation_time": 1789722000, "last_run_modification_time": 1789734597,
+            "last_run_availability_time": 1789734751, "temporal_resolution_seconds": 3600,
+            "update_interval_seconds": 10800, "data_end_time": 1789866000}
+
+
+def test_seconds_until_settled():
+    meta = {"ecmwf_ifs025": META_ECMWF, "jma_msm": META_MSM}
+    mod = datetime.fromtimestamp(META_MSM["last_run_modification_time"], timezone.utc)
+    assert cs.seconds_until_settled(meta, now=mod + timedelta(seconds=120)) == pytest.approx(480)
+    assert cs.seconds_until_settled(meta, now=mod + timedelta(hours=1)) == 0
+    assert cs.seconds_until_settled({"x": {"error": True}}, now=mod) == 0
+
+
+def test_collect_saves_metadata_before_and_after(tmp_path, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(cs.time, "sleep", lambda s: sleeps.append(s))
+    env = cs.load_snapshot(FIX / "snapshot_06Z_jma_msm.json.gz")
+    now = datetime.fromisoformat(env["fetched_at"])
+
+    class S:
+        def get(self, url, params=None, timeout=None):
+            if "static/meta.json" in url:
+                return Resp(200, body=META_MSM if "jma_msm" in url else META_ECMWF)
+            return Resp(200, body=env["body"])
+
+    res = cs.collect(S(), now=now, snapshot_dir=tmp_path)
+    assert res["saved"] == config.MODELS and res["errors"] == []
+    slot = cs.slot_for(now)
+    before = cs.load_snapshot(cs.meta_path(slot, "before", tmp_path))
+    after = cs.load_snapshot(cs.meta_path(slot, "after", tmp_path))
+    assert before["models"]["ecmwf_ifs025"] == META_ECMWF and after["models"]["jma_msm"] == META_MSM
+    assert before["phase"] == "before" and after["phase"] == "after"
+    assert res["run_init_before_after"]["jma_msm"] == (META_MSM["last_run_initialisation_time"],) * 2
+    # 2回目は何もしない (メタデータも取らない)
+    res2 = cs.collect(S(), now=now, snapshot_dir=tmp_path)
+    assert res2["saved"] == [] and res2["skipped"] == config.MODELS

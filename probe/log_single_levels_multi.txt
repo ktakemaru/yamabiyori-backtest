@@ -1,0 +1,96 @@
+columns: 35
+### ecmwf_ifs025 run=2026-09-01T00:00 HTTP 200 46.0s bytes=349,714 locations=5
+   elev 2550.0 gen_ms 9486.966848373413 hours 384
+   relative_humidity_1000hPa       363/384  [79, 77]
+   geopotential_height_1000hPa     363/384  [152.0, 150.0]
+   cloud_cover_1000hPa             363/384  [0, 0]
+   temperature_1000hPa             363/384  [29.0, 29.2]
+   relative_humidity_925hPa        363/384  [76, 75]
+   geopotential_height_925hPa      363/384  [820.0, 818.0]
+   cloud_cover_925hPa              363/384  [0, 0]
+   temperature_925hPa              363/384  [24.7, 24.9]
+   relative_humidity_900hPa          0/384  []
+   geopotential_height_900hPa        0/384  []
+   cloud_cover_900hPa                0/384  []
+   temperature_900hPa                0/384  []
+   relative_humidity_850hPa        363/384  [80, 78]
+   geopotential_height_850hPa      363/384  [1547.0, 1546.0]
+   cloud_cover_850hPa              363/384  [6, 2]
+   temperature_850hPa              363/384  [19.6, 19.9]
+   relative_humidity_800hPa          0/384  []
+   geopotential_height_800hPa        0/384  []
+   cloud_cover_800hPa                0/384  []
+   temperature_800hPa                0/384  []
+   relative_humidity_700hPa        363/384  [69, 68]
+   geopotential_height_700hPa      363/384  [3190.0, 3190.0]
+   cloud_cover_700hPa              363/384  [0, 0]
+   temperature_700hPa              363/384  [9.3, 9.6]
+   relative_humidity_600hPa        363/384  [35, 35]
+   geopotential_height_600hPa      363/384  [4455.0, 4456.0]
+   cloud_cover_600hPa              363/384  [0, 0]
+   temperature_600hPa              363/384  [3.9, 3.9]
+   cloud_cover                     363/384  [27, 25]
+   cloud_cover_low                 363/384  [6, 4]
+   cloud_cover_mid                 363/384  [0, 0]
+   cloud_cover_high                363/384  [0, 0]
+   temperature_2m                  363/384  [14.8, 15.3]
+   relative_humidity_2m            363/384  [76, 73]
+   surface_pressure                363/384  [759.2, 759.3]
+### jma_msm run=2026-09-01T00:00 HTTP 200 43.2s bytes=94,890 locations=5
+   elev 2550.0 gen_ms 27626.907110214233 hours 96
+   relative_humidity_1000hPa        81/96  [59, 58]
+   geopotential_height_1000hPa      81/96  [137.29, 137.29]
+   cloud_cover_1000hPa              81/96  [0, 0]
+   temperature_1000hPa              81/96  [26.9, 27.3]
+   relative_humidity_925hPa         81/96  [67, 65]
+   geopotential_height_925hPa       81/96  [813.95, 813.95]
+   cloud_cover_925hPa               81/96  [0, 0]
+   temperature_925hPa               81/96  [23.5, 24.0]
+   relative_humidity_900hPa          0/96  []
+   geopotential_height_900hPa        0/96  []
+   cloud_cover_900hPa                0/96  []
+   temperature_900hPa                0/96  []
+   relative_humidity_850hPa         81/96  [78, 76]
+   geopotential_height_850hPa       81/96  [1549.45, 1549.45]
+   cloud_cover_850hPa               81/96  [2, 0]
+   temperature_850hPa               81/96  [19.8, 20.2]
+   relative_humidity_800hPa          0/96  []
+   geopotential_height_800hPa        0/96  []
+   cloud_cover_800hPa                0/96  []
+   temperature_800hPa                0/96  []
+   relative_humidity_700hPa         81/96  [81, 81]
+   geopotential_height_700hPa       81/96  [3187.16, 3187.16]
+   cloud_cover_700hPa               81/96  [20, 20]
+   temperature_700hPa               81/96  [9.6, 9.6]
+   relative_humidity_600hPa         81/96  [51, 48]
+   geopotential_height_600hPa       81/96  [4452.22, 4452.22]
+   cloud_cover_600hPa               81/96  [0, 0]
+   temperature_600hPa               81/96  [3.7, 3.9]
+   cloud_cover                      79/96  [47, 44]
+   cloud_cover_low                  79/96  [47, 44]
+   cloud_cover_mid                  79/96  [15, 10]
+   cloud_cover_high                 79/96  [0, 0]
+   temperature_2m                   79/96  [13.3, 14.2]
+   relative_humidity_2m             79/96  [84, 79]
+   surface_pressure                 79/96  [754.9, 755.3]
+reduced columns: 21
+ecmwf_ifs025 2026-08-15T00:00: HTTP 200 wall 49.9s gen non-JSON Unexpected error while streaming data: timeoutReached bytes 53
+ecmwf_ifs025 2026-08-15T12:00: HTTP 200 wall 32.8s gen non-JSON Unexpected error while streaming data: timeoutReached bytes 53
+ecmwf_ifs025 2026-08-16T00:00: HTTP 200 wall 111.2s gen 77801.79238319397 bytes 208,046
+jma_msm 2026-08-15T00:00: HTTP 200 wall 107.4s gen 87266.45386219025 bytes 57,594
+jma_msm 2026-08-15T12:00: HTTP 200 wall 43.4s gen 23888.41187953949 bytes 57,448
+jma_msm 2026-08-16T00:00: HTTP 200 wall 96.3s gen 66192.02077388763 bytes 57,323
+single location, 21 cols
+ecmwf_ifs025 2026-07-10T00:00 fd=10: HTTP 500 wall 32.9s gen None bytes 47
+ecmwf_ifs025 2026-07-11T00:00 fd=10: HTTP 200 wall 14.6s gen 3737.7458810806274 bytes 26,057
+ecmwf_ifs025 2026-07-10T00:00 fd=10: HTTP 500 wall 1.3s gen None bytes 47
+jma_msm 2026-07-10T00:00 fd=4: HTTP 200 wall 87.4s gen 9601.497888565063 bytes 11,332
+jma_msm 2026-07-11T00:00 fd=4: HTTP 500 wall 33.6s gen None bytes 47
+2026-07-10T00:00 200 {"latitude":35.25,"longitude":138.75,"generationtime_ms":3138.8505697250366,"utc_offset_seconds":0,"timezone":"GMT","tim
+2026-07-11T00:00 200 {"latitude":35.25,"longitude":138.75,"generationtime_ms":2.1820068359375,"utc_offset_seconds":0,"timezone":"GMT","timezo
+jma_msm 07-11 200 {"latitude":35.35,"longitude":138.75,"generationtime_ms":0.186920166015625,"utc_offset_seconds":0,"timezone":"GMT","timezone_abbreviation":"GMT","elevation":373
+2026-06-11T00:00 400 {"error":true,"reason":"The requested model run is not available. Model: ecmwf_ifs025, run: 2026-06-11T00:00Z"
+2026-06-11T00:00 400 {"error":true,"reason":"The requested model run is not available. Model: ecmwf_ifs025, run: 2026-06-11T00:00Z"
+2026-06-12T00:00 200 {"latitude":35.25,"longitude":138.75,"generationtime_ms":5.479693412780762,"utc_offset_seconds":0,"timezone":"
+2026-06-11T12:00 200 {"latitude":35.25,"longitude":138.75,"generationtime_ms":474.1518497467041,"utc_offset_seconds":0,"timezone":"
+2026-06-20T00:00 200 {"latitude":35.25,"longitude":138.75,"generationtime_ms":366.54365062713623,"utc_offset_seconds":0,"timezone":

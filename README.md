@@ -14,7 +14,7 @@
 | 0 | API 実測・本体構造把握・設計 | 済 |
 | 1 | Previous Runs API から 5 地点 × 2 モデル × 過去 12 ヶ月 (リード 1〜7 日) を一括取得 → Parquet | 済 (`data/parquet/forecast_long.parquet`) |
 | 2 | GitHub Actions で日次収集: アメダス実況 + Forecast API スナップショット (層別雲量) | 実装済、稼働は GitHub 側で有効化が必要 (下記) |
-| 3 | 評価 / Track B (Single Runs + 気圧面) | 未着手 |
+| 3 | Track B: Single Runs の気圧面から本体の山頂雲量を再現し、① RH 予報誤差 / ②③ 診断+内挿誤差 を分離 | 進行中 (00Z ラン約4割取得、[docs/track-b-findings.md](docs/track-b-findings.md)) |
 
 ## セットアップ (Windows, Python 3.13 で確認)
 
@@ -85,6 +85,21 @@ py -3.13 -m venv venv
 リポジトリの「60 日間コミット無しで schedule 停止」には当たらない。同一時刻・同一スロットの二重取得はしない。
 Forecast API のレスポンスにはランの初期時刻が無いので、`fetched_at` と最後の非 null 時刻から推定する (api-findings §9.4)。
 
+## Phase 3: Track B (Single Runs + 気圧面)
+
+```powershell
+# 気圧面 (RH/GPH/雲量 @1000/925/850/700/600hPa) を 1 ラン × 5 地点で取得。再開可能。初回アクセスは 20〜230 秒/ラン
+.env\Scripts\python.exe -m backtest.fetch_single_runs --start 2026-06-11 --end 2026-09-17 --hours 0            # 00Z
+.env\Scripts\python.exe -m backtest.fetch_single_runs --start 2026-06-11 --end 2026-09-17 --hours 0 12 --models ecmwf_ifs025
+.env\Scripts\python.exe -m backtest.parse_single_runs     # → data/parquet/single_runs_long.parquet (本体と同じ内挿の派生列付き)
+.env\Scripts\python.exe -m backtest.obs_import            # → data/parquet/observation_long.parquet (アメダス map + 既存 etrn キャッシュ)
+.env\Scripts\python.exe -m backtest.trackb_eval --out docs/track-b-tables.txt
+```
+
+- `backtest/summit_interp.py` は本体 core.py L293-339 の内挿の移植。`tests/test_summit_interp.py` が本体を import
+  (読み取りのみ) して同一入力・同一出力を確認する (本体が無い環境ではスキップ)。
+- 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)。
+
 ## テスト
 
 ```powershell
@@ -99,7 +114,7 @@ Forecast スナップショット 1 つ)。
 | site_id | 地点 | 標高 | ペア観測所 |
 |---|---|---|---|
 | karamatsu | 唐松岳 | 2696m | 白馬 48141 (703m) |
-| fuji | 富士山(剣ヶ峰) | 3776m | 富士山 50066 (3775m、唯一の山頂観測、temp のみ) |
+| fuji | 富士山(剣ヶ峰) | 3776m | 富士山 50066 (3775m、唯一の山頂観測: 気温・湿度・気圧。日照は欠測、風は 2004 年に観測終了) |
 | akadake | 八ヶ岳(赤岳) | 2899m | 野辺山 48571 (1350m) |
 | nikko_shirane | 日光白根山 | 2578m | 奥日光 41166 (1292m、官署) |
 | adatara | 安達太良山 | 1700m | 鷲倉 36196 (1220m, 5.3km) |
