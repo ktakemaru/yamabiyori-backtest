@@ -5,6 +5,8 @@
 
 - アメダス: JST 日ごとに 24 正時が揃っているか、観測所ごとの要素欠損 (null) 数
 - 予報スナップショット: UTC 日ごとに 4 スロット × 2 モデルが揃っているか
+- アンサンブル (系統3): UTC 日ごとに 00Z ランのメンバー生値と本体確信度の 2 ファイルが揃っているか
+  (00Z ENS は 09Z 頃公開なので、当日分は 15Z 以降にだけ期待する)
 直近 (実行時刻から SLOT_DELAY+数時間) はまだ取れていなくて正常なので、猶予として除外する。
 欠損があれば終了コード 1。
 """
@@ -18,6 +20,9 @@ from pathlib import Path
 from . import config
 from .collect_amedas import JST, OBS_DIR, load_day
 from .collect_forecast_snapshot import SLOT_DELAY_HOURS, SLOT_HOURS, SNAPSHOT_DIR, slot_for
+from . import collect_ensemble, plugin_confidence_snapshot
+
+ENSEMBLE_EXPECT_AFTER_HOUR = 15   # 00Z ENS の公開 (約 09Z) + ジョブ 2 回分の猶予
 
 
 def check_amedas(days: int, now: datetime, obs_dir: Path = OBS_DIR) -> tuple[list[str], list[str]]:
@@ -89,6 +94,32 @@ def check_snapshots(days: int, now: datetime, snapshot_dir: Path = SNAPSHOT_DIR)
     return lines, problems
 
 
+def check_ensemble(days: int, now: datetime, ens_dir: Path = collect_ensemble.SNAPSHOT_DIR,
+                   conf_dir: Path = plugin_confidence_snapshot.SNAPSHOT_DIR) -> tuple[list[str], list[str]]:
+    lines, problems = [], []
+    last_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if now.hour < ENSEMBLE_EXPECT_AFTER_HOUR:
+        last_day -= timedelta(days=1)
+    existing = sorted(ens_dir.rglob("00Z_*.json.gz")) if ens_dir.exists() else []
+    if not existing:
+        return ["  (no ensemble snapshots yet)"], ["ensemble: no data files"]
+    earliest = datetime.strptime(existing[0].parent.name, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    day = max(last_day - timedelta(days=days - 1), earliest)
+    while day <= last_day:
+        run = day   # 00Z
+        items = []
+        for label, p in [("members", collect_ensemble.snapshot_path(run, ens_dir)),
+                         ("confidence", plugin_confidence_snapshot.snapshot_path(run, conf_dir))]:
+            if p.exists():
+                items.append(label)
+            else:
+                items.append(f"{label}:MISSING")
+                problems.append(f"ensemble missing {day:%Y-%m-%d} 00Z {label}")
+        lines.append(f"  {day:%Y-%m-%d} 00Z: " + " ".join(items))
+        day += timedelta(days=1)
+    return lines, problems
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--days", type=int, default=7)
@@ -104,7 +135,10 @@ def main(argv=None):
           f"slots newer than {SLOT_DELAY_HOURS}h ago not expected yet)")
     l2, p2 = check_snapshots(args.days, now, args.snapshot_dir)
     print("\n".join(l2))
-    problems = p1 + p2
+    print(f"## ensemble members + plugin confidence (UTC, 00Z run; today's expected only after {ENSEMBLE_EXPECT_AFTER_HOUR}Z)")
+    l3, p3 = check_ensemble(args.days, now)
+    print("\n".join(l3))
+    problems = p1 + p2 + p3
     if problems:
         print(f"\n!! {len(problems)} problem(s):")
         for p in problems:

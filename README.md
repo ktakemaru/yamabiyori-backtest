@@ -24,8 +24,8 @@ py -3.13 -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-依存: `requests`, `polars`, `tzdata`, `pytest`。pyarrow / pandas は使わない (polars がネイティブで Parquet を扱う)。
-収集スクリプト (`collect_*`, `check_collection`) は `requests` だけで動く (GitHub Actions ではそれだけ入れる)。
+依存: `requests`, `polars`, `tzdata`, `pytest`、`numpy` (本体 `mountain_terrain.py` の import に必要)。pyarrow / pandas は使わない (polars がネイティブで Parquet を扱う)。
+収集スクリプト (`collect_*`, `check_collection`) は `requests` だけで動く (`plugin_confidence_snapshot` だけ本体経由で `numpy` も要る)。
 
 ## Phase 1: Previous Runs の一括取得
 
@@ -57,20 +57,27 @@ py -3.13 -m venv venv
 
 ## Phase 2: 日次収集 (GitHub Actions)
 
-`.github/workflows/collect.yml` が 3 時間ごと (`20 */3 * * *` UTC) に 2 系統を収集してコミットする。
+`.github/workflows/collect.yml` が 3 時間ごと (`20 */3 * * *` UTC) に 3 系統を収集してコミットする。
 
 | 系統 | 取得元 | 保存先 | 補足 |
 |---|---|---|---|
 | 1 アメダス実況 | `jma.go.jp/bosai/amedas/data/map/<正時>.json` | `data/obs/amedas/<JST日>.json.gz` | 13 観測所 × 7 要素 (`config.AMEDAS_STATIONS/ELEMENTS`) だけ抽出。約 8 日で 404 になるので、毎回「保持窓内の未取得正時」を全部取る (失敗しても次回で埋まる) |
 | 2 予報スナップショット | `api.open-meteo.com/v1/forecast` | `data/snapshots/forecast/<UTC日>/<HH>Z_<model>.json.gz` | 5 地点 × 2 モデル、16 日先、`cloud_cover_low/mid/high` 入り、生レスポンスのまま。6 時間スロット (実行時刻 −3h を含む境界) |
+| 3a アンサンブル全メンバー | `ensemble-api.open-meteo.com/v1/ensemble` (ecmwf_ifs025, 50+1 列) | `data/snapshots/ensemble/<ラン日>/<HH>Z_ecmwf_ifs025_members.json.gz` | **00Z ランのみ (日次)**。5 地点 × 22 変数 (雲量 全/低/中/高、降水、気温、925/850/700/600hPa の雲量/RH/気温/GPH) × 3 時間刻み × 16 日、生値のまま (スプレッドは後で計算)。約 0.7MB/日 |
+| 3b 本体の確信度スコア | 本体 (`ktakemaru/yamabiyori` main) をライブラリとして import | `data/snapshots/plugin_confidence/<ラン日>/<HH>Z.json.gz` | 本体の `compute_ensemble_confidence_by_day()` を 5 座について本体と同じ引数で呼び、**本体の git hash** と入力生レスポンス・出力を保存。本体は読み取り専用 (`dont_write_bytecode`、`fetch_ensemble` をプロセス内でキャッシュ無し版に差し替え) |
 
 ローカルでも同じコマンドで動く:
 
 ```powershell
 .\venv\Scripts\python.exe -m backtest.collect_amedas              # 保持窓内の未取得正時を取る
 .\venv\Scripts\python.exe -m backtest.collect_forecast_snapshot   # 現スロットのスナップショット
+.\venv\Scripts\python.exe -m backtest.collect_ensemble             # 最新ランが 00Z で未保存なら取る (--run-hours 0,12 等で変更)
+.\venv\Scripts\python.exe -m backtest.plugin_confidence_snapshot   # 本体 (既定 C:\mountain-weather、YAMABIYORI_PLUGIN_DIR で変更) の確信度を記録
 .\venv\Scripts\python.exe -m backtest.check_collection --days 7   # 欠損チェック (欠損があれば終了コード 1)
 ```
+
+系統3 の背景 (アンサンブルはリード別に遡れないので今から貯めるしかない) と、無料枠に対するリクエスト量の見積りは
+api-findings §11。Actions では本体を `plugin/` に読み取り専用で checkout する (`.gitignore` 済み、push しない)。
 
 ### GitHub 側で必要な設定
 

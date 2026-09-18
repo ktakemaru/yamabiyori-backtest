@@ -1,0 +1,1 @@
+{"url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&timezone=UTC&models=ecmwf_ifs025_ensemble&hourly=cloud_cover&run=2026-09-18T00%3A00", "status": 400, "body": {"error": true, "reason": "The requested model run is not available. Model: ecmwf_ifs025_ensemble, run: 2026-09-18T00:00Z"}}

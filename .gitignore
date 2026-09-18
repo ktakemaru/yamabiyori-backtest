@@ -7,3 +7,10 @@ __pycache__/
 
 # Phase 0 の大きな生レスポンス (アメダス全国マップ, 250-350KB x 数個)
 probe/raw/amedas_map_*.json
+
+# Actions 上で読み取り専用に checkout する本体 (ktakemaru/yamabiyori)
+plugin/
+
+# Ensemble API プローブの大きな生レスポンス (4-5MB x 2)
+probe/raw/ens_multi5_hourly3.json
+probe/raw/ens_vars_ecmwf_ifs025.json

@@ -1,18 +1,26 @@
 name: collect
 
-# 系統1 (アメダス実況, 毎正時の map JSON) と 系統2 (Forecast API スナップショット, 6時間スロット) を
+# 系統1 (アメダス実況, 毎正時の map JSON)、系統2 (Forecast API スナップショット, 6時間スロット)、
+# 系統3 (ECMWF アンサンブル全メンバー + 本体の確信度スコア, 00Z ランのみ = 日次) を
 # 3時間ごとに1つのジョブで収集し、データをコミットする。
+# - 系統3 はメタデータの最新ランが 00Z で未保存のときだけ取る (00Z ENS は 09Z 頃公開 → 09:20 or 12:20 のジョブが取る)。
+#   本体 (ktakemaru/yamabiyori main) は読み取り専用で checkout し、ライブラリとして import するだけ (push しない)。
 # - cron は数分〜数十分遅れる前提: アメダスは保持窓 (約8日) 内の未取得分を毎回全部取るので遅れても埋まる。
 #   スナップショットは「実行時刻-3h を含む 6h スロット」を取るので、遅れてもスロットは変わらない。
 # - 同一時刻の二重取得なし (取得済みファイルはスキップ)。
 # - データコミットが 3 時間ごとに発生するので、public リポジトリの「60日間コミット無しで schedule 停止」に
 #   引っかからない。
-# - 負荷: JMA へ約 8 リクエスト/日 (+バックフィル)、Open-Meteo へ 8 リクエスト/日。
+# - 負荷: JMA へ約 8 リクエスト/日 (+バックフィル)、Open-Meteo へ 系統2 で 8 + メタ 32、系統3 で 1 + 6 + メタ 8 リクエスト/日。
 on:
   schedule:
     - cron: "20 */3 * * *"   # 収集: 00:20, 03:20, ... UTC (正時直後の混雑を避ける)
     - cron: "50 0 * * *"     # 欠損チェック: 毎日 00:50 UTC
   workflow_dispatch:
+    inputs:
+      ensemble_run_hours:
+        description: "系統3 で保存対象にするラン初期時刻 (UTC, カンマ区切り)。手動確認用。既定 0"
+        default: "0"
+        required: false
 
 permissions:
   contents: write
@@ -31,12 +39,20 @@ jobs:
         with:
           fetch-depth: 1
 
+      # 本体 (読み取り専用)。系統3 が import するためだけに置く。plugin/ は .gitignore 済みでコミット対象外。
+      - uses: actions/checkout@v4
+        with:
+          repository: ktakemaru/yamabiyori
+          ref: main
+          path: plugin
+          fetch-depth: 1
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Install
-        run: python -m pip install -q requests
+        run: python -m pip install -q requests numpy
 
       - name: Collect AMeDAS (system 1)
         id: amedas
@@ -47,6 +63,19 @@ jobs:
         id: snapshot
         continue-on-error: true
         run: python -m backtest.collect_forecast_snapshot
+
+      - name: Collect ECMWF ensemble members (system 3)
+        id: ensemble
+        continue-on-error: true
+        run: python -m backtest.collect_ensemble --run-hours "${{ inputs.ensemble_run_hours || '0' }}"
+
+      - name: Snapshot plugin confidence score (system 3, plugin imported read-only)
+        id: confidence
+        continue-on-error: true
+        env:
+          TZ: Asia/Tokyo                      # 本体の date.today() を日本時間に揃える
+          YAMABIYORI_PLUGIN_DIR: ${{ github.workspace }}/plugin
+        run: python -m backtest.plugin_confidence_snapshot --run-hours "${{ inputs.ensemble_run_hours || '0' }}"
 
       - name: Commit data
         run: |
@@ -65,9 +94,9 @@ jobs:
           done
 
       - name: Fail if a collector failed
-        if: steps.amedas.outcome == 'failure' || steps.snapshot.outcome == 'failure'
+        if: steps.amedas.outcome == 'failure' || steps.snapshot.outcome == 'failure' || steps.ensemble.outcome == 'failure' || steps.confidence.outcome == 'failure'
         run: |
-          echo "amedas=${{ steps.amedas.outcome }} snapshot=${{ steps.snapshot.outcome }}"
+          echo "amedas=${{ steps.amedas.outcome }} snapshot=${{ steps.snapshot.outcome }} ensemble=${{ steps.ensemble.outcome }} confidence=${{ steps.confidence.outcome }}"
           exit 1
 
   # 毎日1回、直近7日に欠損が無いかをチェック (欠損があればこのジョブが赤くなる)

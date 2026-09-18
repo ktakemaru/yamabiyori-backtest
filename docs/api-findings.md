@@ -402,3 +402,99 @@ hour 24 は翌日 00:00 JST として扱った。
   `data/obs/etrn/fuji/<date>.json` (+ 生 HTML gz) に保存し、`obs_import.py` が source=`etrn_fetch` として取り込む。
   過去分は etrn に残るので日次更新で十分 (当日分は翌日以降に確定値が出る)。
 - 同ページの湿度・現地気圧は AMeDAS 正時 map の値と一致する (例 2026-09-15 11時: 649.5hPa / 100%)。
+
+## 11. Ensemble API (確信度スコアの蓄積に向けた実測, 2026-09-18 21Z〜)
+
+プローブ: `probe/probe_ensemble.py` (生レスポンスは `probe/raw/ens_*.json`、ログ `probe/log_ensemble.txt`)。
+
+### 11.1 モデル・メンバー・ホライズン
+
+`https://ensemble-api.open-meteo.com/v1/ensemble` に `models=<name>` で 9 種を投げた結果 (唐松岳, forecast_days=16, cloud_cover + precipitation):
+
+| models | 列 | 値 | ホライズン (非 null 最終時刻) |
+|---|---|---|---|
+| **ecmwf_ifs025** | コントロール 1 + `_member01..50` = **51 列** | あり | **初期時刻 + 360h (15 日)** (06Z ラン → 10-03 02Z) |
+| ecmwf_ifs04 | 1 列 | 全 null | — |
+| **jma_msm / jma_gsm** | 1 列 | **全 null** | — (JMA のアンサンブルは無い) |
+| gfs025 | 1 + 30 | あり | +240h (10 日) |
+| gfs05 | 1 + 30 | あり | +384h (16 日) |
+| icon_global | 1 + 39 | あり | +180h |
+| gem_global | 1 + 20 | あり | +384h |
+| bom_access_global | 1 列 | 全 null | — |
+
+- 本体が使う `ecmwf_ifs025` は 50 摂動メンバー + コントロール (本体の `ENSEMBLE_MEMBER_COUNT = 50` と一致。
+  コントロール列は接尾辞なし)。格子は 0.25° (返る座標 36.75/137.75、標高 2550m)。
+- **メタデータ API 上の名前は `ecmwf_ifs025_ensemble`** (`https://api.open-meteo.com/data/ecmwf_ifs025_ensemble/static/meta.json`
+  が HTTP 200; `ecmwf_ifs025` は決定論版のメタ)。2026-09-18 21Z の値: 初期時刻 06Z、修正 14:59:31Z、公開 15:00:07Z
+  (= **初期時刻 + 9h**; 決定論版は +7.7h)、temporal_resolution 10800s、update_interval 21600s (4 ラン/日)。
+  `jma_msm_ensemble` は 500。ensemble-api.open-meteo.com 側の `/data/...` は同じ内容を返す。
+
+### 11.2 変数 (ecmwf_ifs025, 48 変数を一括要求 → HTTP 200, 4.1MB, 3.8s, generationtime 49s)
+
+- **取れる**: `cloud_cover`, `cloud_cover_low/mid/high`, `precipitation`, `temperature_2m`, `relative_humidity_2m`, `wind_speed_10m`, `cape`,
+  気圧面 `relative_humidity / geopotential_height / cloud_cover / temperature / wind_speed` の **1000 / 925 / 850 / 700 / 600 hPa**。
+- **全 null**: 気圧面の **900 / 800 hPa** (Single Runs と同じ; 本体は Forecast API では 900/800 も使う)、`freezing_level_height`。
+- 時間刻み: レスポンスは毎時 (384 ステップ/16 日) だが **ネイティブは 3h** (`temporal_resolution=native` または `hourly_3` で
+  128 ステップ、両者同一)。144h 以降はネイティブ 6h で、3h 刻みにも毎時にも補間されて返る。
+  雲量の毎時値は 3h 値の間を滑らかに補間したもので、線形ではない (28 → 31, 45 → 58: 線形なら 38, 48)。
+  **precipitation は毎時が「3h 積算 ÷ 3 を 0.1mm 丸め」** (毎時 0.2, 0.2, 0.2 ↔ native 0.6; 0.7×3 ↔ 2.0)。
+  → 本体の「メンバーごとに毎時 ≥ 0.1mm」は実質「3h 積算 ≥ 0.15〜0.3mm」相当。
+- スプレッド変数 (`<var>_spread`) は Forecast / Previous Runs / Single Runs / Ensemble のどれでも**全 null**
+  (エラーメッセージの型名 `VariableOrSpread<...>` から受理はされるが、データが無い)。
+
+### 11.3 過去アーカイブ: 無い (リード別に遡れない)
+
+| 試したこと | 結果 |
+|---|---|
+| Ensemble API `past_days=7/30/92` | 時刻軸は伸びるが **非 null は 2026-09-15 00Z 以降のみ** (実行時 09-18: 約 3〜4 日分)。
+  それより前は null。`start_date` は「2026-06-17〜2026-10-23」の範囲制約で、06-01 は 400 |
+| Ensemble API `start_date=2026-09-01` (範囲内) | HTTP 200 だが全 null |
+| Ensemble API `run=2026-09-18T06:00` 等 (最新ランも) | 400 `The requested model run is not available. Model: ecmwf_ifs025_ensemble` (`run=` は受理されるが、どのランも無い) |
+| Previous Runs `models=ecmwf_ifs025`, `cloud_cover_member01_previous_day1` | 400 (変数名を解釈できない) |
+| Previous Runs `models=ecmwf_ifs025_ensemble`, `cloud_cover_previous_day1` | HTTP 200、**51 列 (member 付き) で返るが全 null** |
+| Single Runs `models=ecmwf_ifs025_ensemble`, run=2026-09-01/09-15/09-18 00Z | 400 run not available |
+| Single Runs `models=ecmwf_ifs025`, `cloud_cover_member01` | 400 |
+
+→ **アンサンブルはリード別に遡れないので、確信度 (スプレッド) の検証データは今から貯めるしかない**。
+Ensemble API の「過去 3〜4 日」はラン混在の継ぎ足し (Forecast API と同じ性質) なのでリード解決には使えない。
+
+### 11.4 系統3 として日次収集を追加した (2026-09-19)
+
+- `backtest/collect_ensemble.py`: メタデータの最新ランが **00Z** (`--run-hours` で変更可) かつ未保存なら、
+  5 地点 × 22 変数 (precipitation, cloud_cover, low/mid/high, temperature_2m, {cloud_cover, relative_humidity, temperature,
+  geopotential_height} @ 925/850/700/600) × 51 列 × `temporal_resolution=native` (3h) × 16 日 を 1 リクエストで取り、
+  `data/snapshots/ensemble/<ラン日>/<HH>Z_ecmwf_ifs025_members.json.gz` に保存 (メタ before/after 同梱)。
+  実測 1 ファイル **0.70MB (gz)**、生 3.3MB、4.2 秒。年 ≈ 260MB。スプレッド等は計算せず生値のまま。
+  00Z ENS の公開が約 09Z なので、cron `20 */3` では 09:20Z か 12:20Z のジョブが取る (12Z 以降は 06Z ランに替わるまで同じラン)。
+- `backtest/plugin_confidence_snapshot.py`: 本体 (`ktakemaru/yamabiyori` main を Actions 上で読み取り専用 checkout、
+  ローカルでは `C:\mountain-weather`) を `sys.dont_write_bytecode=True` で import し、
+  `fetch_ensemble` だけをプロセス内でキャッシュ無し版に差し替えて (本体の cache/ に書かせないため)、
+  本体の `compute_ensemble_confidence_by_day()` を 5 座について本体と同じ引数で呼ぶ
+  (`nearest_pressure_level(標高)` の `cloudcover_<hPa>hPa` / `temperature_<hPa>hPa` + precipitation, Asia/Tokyo, 14 日, 毎時;
+  日の出は Forecast API `daily=sunrise` = 本体 `fetch_forecast()` と同じ出所)。
+  `data/snapshots/plugin_confidence/<ラン日>/<HH>Z.json.gz` に、**本体の git hash・ブランチ・dirty 状態・主要 3 ファイルの sha256**、
+  本体の定数、地点ごとの入力生レスポンス (本体関数の入力そのもの) と出力 (日別 confidence / cloud / precip / temp 内訳) を保存。
+  実測 0.12MB/日。`date.today()` に依存する cutoff (CONFIDENCE_MIN_DAYS_OUT=2) のため Actions では `TZ=Asia/Tokyo`。
+  ローカル初回 (2026-09-18 06Z ラン, hash a65656e, branch feature/backtest-harness, dirty) では本体ディレクトリに
+  cache/ も __pycache__ も新規に作られないことを確認した (テスト `test_plugin_confidence_reproduces_snapshot_without_touching_plugin_dir`)。
+- `check_collection` に「UTC 日ごとに 00Z の members + confidence が揃っているか (当日分は 15Z 以降に期待)」を追加。
+
+### 11.5 Open-Meteo 無料枠に対するリクエスト量の見積り
+
+公式 (pricing ページ, 2026-09-19 閲覧): 無料 API は非商用、**10,000 calls/日、5,000/時、600/分**。
+1 call = 1 HTTP リクエストが基本だが「**10 変数超、または 1 地点 2 週間超は複数 call として小数で数える**」
+(例: 2 週間 × 15 変数 = 1.5 call、4 週間 = 3.0 call)。**アンサンブルの member 列を「変数」として数えるかは公表されていない (未確認)**
+ので、下限 (基本変数で数える) と上限 (51 列すべてを変数として数える) の両方を示す。
+
+| 系統 | HTTP リクエスト/日 | 重み付き call/日 (下限〜上限) |
+|---|---|---|
+| 2: Forecast API スナップショット (4 スロット × 2 モデル, 5 地点 × 32 変数 × 16 日) | 8 (+メタ 16) | 8 × 5 × 3.2 × 1.3 ≈ **165** |
+| 3: Ensemble members (1 ラン/日, 5 地点 × 22 変数 × 51 列 × 16 日) | 1 (+メタ 2) | 5 × 2.2 × 1.3 ≈ **14** 〜 5 × 112 × 1.3 ≈ **730** |
+| 3: 本体確信度 (5 地点 × 3 変数 × 51 列 × 14 日 + 日の出 1) | 6 (+メタ 1) | 5 × 1 + 1 ≈ **6** 〜 5 × 15.3 + 1 ≈ **78** |
+| 合計 | 15 (+メタ 19) | **≈ 185 〜 975 call/日** |
+
+- 上限でも 10,000/日の **10% 未満**。時間当たりは最大のジョブ (12:20Z など、系統2 + 系統3 が同時) で ≈ 850 (上限) < 5,000/時。
+- 分当たり: 系統3 の members リクエストは 1 本で上限換算 730 だが、実測では HTTP 200 (4.2 秒) で拒否されなかった。
+  本体自身も同型 (3 変数 × 51 列 × 14 日) のリクエストを 1 座ごとに投げる設計なので、本体の運用と同程度。
+- Phase 1 の Previous Runs 一括取得 (5 地点 × 2 モデル × 12 か月、63 列/リクエスト) は一度きりで、日次には含まれない。
+- Track B の Single Runs 追加取得 (12Z など) を再開する場合は別途見積る。

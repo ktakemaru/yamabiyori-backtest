@@ -1,4 +1,4 @@
-"""再現テスト: backtest.summit_interp が本体 (C:\mountain-weather\mountain_weather_core.py) の
+"""再現テスト: backtest.summit_interp が本体 (C:/mountain-weather/mountain_weather_core.py) の
 interp_at_altitude / add_altitude_columns と同一入力で同一出力になることを確認する。
 入力は Single Runs API の実レスポンス (5地点, run 2026-09-01T00Z)。本体は import して読むだけで変更しない。"""
 import gzip
@@ -16,6 +16,7 @@ BODY_ROOT = Path("C:/mountain-weather")
 
 core = None
 if BODY_ROOT.exists():
+    sys.dont_write_bytecode = True   # 本体ディレクトリに __pycache__ を作らない
     sys.path.insert(0, str(BODY_ROOT))
     import mountain_weather_core as core  # noqa: E402  (読み取りのみ)
 

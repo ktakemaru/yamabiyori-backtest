@@ -2,3 +2,4 @@ requests>=2.32
 polars>=1.36
 tzdata>=2024.1
 pytest>=8
+numpy>=2  # 本体 (mountain_terrain.py) の import に必要
