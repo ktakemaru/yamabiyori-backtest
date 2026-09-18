@@ -1,0 +1,12 @@
+{
+ "tag": "err_badmodel",
+ "url": "https://previous-runs-api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&models=no_such_model&hourly=temperature_2m_previous_day1&start_date=2026-09-10&end_date=2026-09-10",
+ "status": 400,
+ "headers": {
+  "Content-Type": "application/json; charset=utf-8"
+ },
+ "body": {
+  "error": true,
+  "reason": "Invalid value: Cannot initialize MultiDomains from invalid String value no_such_model"
+ }
+}

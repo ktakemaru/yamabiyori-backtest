@@ -1,0 +1,38 @@
+## jma_msm
+  jma_msm 2021-01-01 -> nonnull 0/24
+  jma_msm 2023-12-15 -> nonnull 24/24
+  jma_msm 2022-06-24 -> nonnull 0/24
+  jma_msm 2023-03-20 -> nonnull 24/24
+  jma_msm 2022-11-05 -> nonnull 24/24
+  jma_msm 2022-08-30 -> nonnull 24/24
+  jma_msm 2022-07-27 -> nonnull 24/24
+  jma_msm 2022-07-10 -> nonnull 24/24
+  jma_msm 2022-07-02 -> nonnull 15/24
+  jma_msm 2022-06-28 -> nonnull 0/24
+  jma_msm 2022-06-30 -> nonnull 0/24
+  jma_msm 2022-07-01 -> nonnull 0/24
+  => jma_msm 最初にデータのある日: 2022-07-02
+## ecmwf_ifs025
+  ecmwf_ifs025 2024-01-15 -> nonnull 0/24
+  ecmwf_ifs025 2024-03-01 -> nonnull 24/24
+  ecmwf_ifs025 2024-02-07 -> nonnull 24/24
+  ecmwf_ifs025 2024-01-26 -> nonnull 0/24
+  ecmwf_ifs025 2024-02-01 -> nonnull 0/24
+  ecmwf_ifs025 2024-02-04 -> nonnull 15/24
+  ecmwf_ifs025 2024-02-02 -> nonnull 0/24
+  ecmwf_ifs025 2024-02-03 -> nonnull 0/24
+  => ecmwf_ifs025 最初にデータのある日: 2024-02-04
+## ecmwf_ifs
+  ecmwf_ifs 2024-06-01 -> nonnull 0/24
+  ecmwf_ifs 2026-09-10 -> nonnull 24/24
+  ecmwf_ifs 2025-07-21 -> nonnull 0/24
+  ecmwf_ifs 2026-02-14 -> nonnull 24/24
+  ecmwf_ifs 2025-11-02 -> nonnull 24/24
+  ecmwf_ifs 2025-09-11 -> nonnull 0/24
+  ecmwf_ifs 2025-10-07 -> nonnull 24/24
+  ecmwf_ifs 2025-09-24 -> nonnull 0/24
+  ecmwf_ifs 2025-09-30 -> nonnull 0/24
+  ecmwf_ifs 2025-10-03 -> nonnull 24/24
+  ecmwf_ifs 2025-10-01 -> nonnull 15/24
+  => ecmwf_ifs 最初にデータのある日: 2025-10-01
+{'jma_msm': '2022-07-02', 'ecmwf_ifs025': '2024-02-04', 'ecmwf_ifs': '2025-10-01'}

@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+*.tmp
+
+# Phase 0 の大きな生レスポンス (アメダス全国マップ, 250-350KB x 数個)
+probe/raw/amedas_map_*.json

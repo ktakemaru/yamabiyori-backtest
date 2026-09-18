@@ -1,0 +1,12 @@
+{
+ "tag": "singlestart_jma_msm_2026-04-01",
+ "url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&models=jma_msm&hourly=temperature_2m%2Ccloud_cover&run=2026-04-01T00%3A00&timezone=Asia%2FTokyo",
+ "status": 400,
+ "headers": {
+  "Content-Type": "application/json; charset=utf-8"
+ },
+ "body": {
+  "reason": "The requested model run is not available. Model: jma_msm, run: 2026-04-01T00:00Z",
+  "error": true
+ }
+}

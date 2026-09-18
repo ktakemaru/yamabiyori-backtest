@@ -1,0 +1,5 @@
+HTTP 200 type: list len: 3
+   36.75 137.75 elev 2550.0 nonnull 48 / 48 location_id None
+   35.25 138.75 elev 3736.0 nonnull 48 / 48 location_id 1
+   36.5 137.5 elev 2980.0 nonnull 48 / 48 location_id 2
+1年分 HTTP 200 hours=8760 gen_ms=503

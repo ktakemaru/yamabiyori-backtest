@@ -1,0 +1,16 @@
+### msm_lead3_3cols 2026-08-01..2026-08-31 HTTP 200 gen=0ms
+  temperature_2m_previous_day3         nonnull    0/ 744  UTC hours with data: {}
+  cloud_cover_previous_day3            nonnull    0/ 744  UTC hours with data: {}
+  precipitation_previous_day3          nonnull    0/ 744  UTC hours with data: {}
+### msm_lead3_3cols 2026-03-01..2026-03-31 HTTP 200 gen=0ms
+  temperature_2m_previous_day3         nonnull    0/ 744  UTC hours with data: {}
+  cloud_cover_previous_day3            nonnull    0/ 744  UTC hours with data: {}
+  precipitation_previous_day3          nonnull    0/ 744  UTC hours with data: {}
+### msm_lead3_mix 2026-08-01..2026-08-31 HTTP 200 gen=0ms
+  temperature_2m_previous_day2         nonnull  744/ 744  UTC hours with data: {'00': 31, '01': 31, '02': 31, '03': 31, '04': 31, '05': 31, '06': 31, '07': 31, '08': 31, '09': 31, '10': 31, '11': 31, '12': 31, '13': 31, '14': 31, '15': 31, '16': 31, '17': 31, '18': 31, '19': 31, '20': 31, '21': 31, '22': 31, '23': 31}
+  temperature_2m_previous_day3         nonnull    0/ 744  UTC hours with data: {}
+  wind_speed_10m_previous_day3         nonnull    0/ 744  UTC hours with data: {}
+### msm_lead3_mix 2026-03-01..2026-03-31 HTTP 200 gen=1ms
+  temperature_2m_previous_day2         nonnull  744/ 744  UTC hours with data: {'00': 31, '01': 31, '02': 31, '03': 31, '04': 31, '05': 31, '06': 31, '07': 31, '08': 31, '09': 31, '10': 31, '11': 31, '12': 31, '13': 31, '14': 31, '15': 31, '16': 31, '17': 31, '18': 31, '19': 31, '20': 31, '21': 31, '22': 31, '23': 31}
+  temperature_2m_previous_day3         nonnull    0/ 744  UTC hours with data: {}
+  wind_speed_10m_previous_day3         nonnull    0/ 744  UTC hours with data: {}

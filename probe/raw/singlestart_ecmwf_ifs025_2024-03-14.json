@@ -1,0 +1,12 @@
+{
+ "tag": "singlestart_ecmwf_ifs025_2024-03-14",
+ "url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&models=ecmwf_ifs025&hourly=temperature_2m%2Ccloud_cover&run=2024-03-14T00%3A00&timezone=Asia%2FTokyo",
+ "status": 400,
+ "headers": {
+  "Content-Type": "application/json; charset=utf-8"
+ },
+ "body": {
+  "error": true,
+  "reason": "The requested model run is not available. Model: ecmwf_ifs025, run: 2024-03-14T00:00Z"
+ }
+}

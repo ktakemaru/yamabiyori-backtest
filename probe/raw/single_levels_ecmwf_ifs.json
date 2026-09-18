@@ -1,0 +1,8 @@
+{
+ "url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&models=ecmwf_ifs&hourly=cloud_cover_925hPa%2Ccloud_cover_850hPa%2Ccloud_cover_700hPa%2Crelative_humidity_925hPa%2Crelative_humidity_850hPa%2Crelative_humidity_700hPa%2Cwind_speed_925hPa%2Cwind_speed_850hPa%2Cwind_speed_700hPa%2Ctemperature_925hPa%2Ctemperature_850hPa%2Ctemperature_700hPa%2Cgeopotential_height_925hPa%2Cgeopotential_height_850hPa%2Cgeopotential_height_700hPa%2Ccape%2Cprecipitation_probability&run=2026-09-01T00%3A00&timezone=Asia%2FTokyo",
+ "status": 400,
+ "body": {
+  "error": true,
+  "reason": "The requested model run is not available. Model: ecmwf_ifs025_ensemble, run: 2026-09-01T00:00Z"
+ }
+}

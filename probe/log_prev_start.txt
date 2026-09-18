@@ -1,0 +1,75 @@
+
+### prevstart_jma_msm_2023-12-15  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 2362.984776496887}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2023-12-15T00:00  sample=[-3.2, -2.9, -2.5]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2023-12-15T00:00  sample=[35, 39, 57]
+
+### prevstart_jma_msm_2024-01-15  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 15.374183654785156}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2024-01-15T00:00  sample=[-9.7, -8.9, -8.6]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2024-01-15T00:00  sample=[97, 97, 97]
+
+### prevstart_jma_msm_2024-03-01  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 19.050002098083496}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2024-03-01T00:00  sample=[-8.6, -8.7, -7.6]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2024-03-01T00:00  sample=[88, 88, 100]
+
+### prevstart_jma_msm_2024-03-20  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 8.757352828979492}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2024-03-20T00:00  sample=[-9.9, -9.5, -10.1]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2024-03-20T00:00  sample=[97, 86, 84]
+
+### prevstart_jma_msm_2024-06-01  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 62.34622001647949}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2024-06-01T00:00  sample=[0.7, 0.5, 0.4]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2024-06-01T00:00  sample=[70, 48, 37]
+
+### prevstart_ecmwf_ifs025_2023-12-15  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.059604644775390625}
+  temperature_2m_previous_day1                     nonnull    0/  24  first=None  sample=[]
+  cloud_cover_previous_day1                        nonnull    0/  24  first=None  sample=[]
+
+### prevstart_ecmwf_ifs025_2024-01-15  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.08475780487060547}
+  temperature_2m_previous_day1                     nonnull    0/  24  first=None  sample=[]
+  cloud_cover_previous_day1                        nonnull    0/  24  first=None  sample=[]
+
+### prevstart_ecmwf_ifs025_2024-03-01  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 8.161783218383789}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2024-03-01T00:00  sample=[-9.0, -8.9, -8.9]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2024-03-01T00:00  sample=[100, 95, 89]
+
+### prevstart_ecmwf_ifs025_2024-03-20  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.2522468566894531}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2024-03-20T00:00  sample=[-11.6, -11.4, -11.2]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2024-03-20T00:00  sample=[66, 59, 50]
+
+### prevstart_ecmwf_ifs025_2024-06-01  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.3230571746826172}
+  temperature_2m_previous_day1                     nonnull   24/  24  first=2024-06-01T00:00  sample=[-1.9, -2.0, -1.8]
+  cloud_cover_previous_day1                        nonnull   24/  24  first=2024-06-01T00:00  sample=[78, 70, 53]
+
+### prevstart_ecmwf_ifs_2023-12-15  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.06020069122314453}
+  temperature_2m_previous_day1                     nonnull    0/  24  first=None  sample=[]
+  cloud_cover_previous_day1                        nonnull    0/  24  first=None  sample=[]
+
+### prevstart_ecmwf_ifs_2024-01-15  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.035762786865234375}
+  temperature_2m_previous_day1                     nonnull    0/  24  first=None  sample=[]
+  cloud_cover_previous_day1                        nonnull    0/  24  first=None  sample=[]
+
+### prevstart_ecmwf_ifs_2024-03-01  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.1169443130493164}
+  temperature_2m_previous_day1                     nonnull    0/  24  first=None  sample=[]
+  cloud_cover_previous_day1                        nonnull    0/  24  first=None  sample=[]
+
+### prevstart_ecmwf_ifs_2024-03-20  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.05841255187988281}
+  temperature_2m_previous_day1                     nonnull    0/  24  first=None  sample=[]
+  cloud_cover_previous_day1                        nonnull    0/  24  first=None  sample=[]
+
+### prevstart_ecmwf_ifs_2024-06-01  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.053763389587402344}
+  temperature_2m_previous_day1                     nonnull    0/  24  first=None  sample=[]
+  cloud_cover_previous_day1                        nonnull    0/  24  first=None  sample=[]

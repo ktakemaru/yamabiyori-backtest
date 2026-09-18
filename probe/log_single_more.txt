@@ -1,0 +1,30 @@
+## jma_msm 開始日の二分探索 (00Z run)
+single_bisect_jma_msm_2026-04-03: HTTP 400 The requested model run is not available. Model: jma_msm, run: 2026-04-03T00:00Z
+single_bisect_jma_msm_2026-09-01: HTTP 200 2026-09-01T09:00..2026-09-04T15:00 (79h nonnull / 168 returned)
+single_bisect_jma_msm_2026-06-17: HTTP 200 2026-06-17T09:00..2026-06-20T15:00 (79h nonnull / 168 returned)
+single_bisect_jma_msm_2026-05-10: HTTP 400 The requested model run is not available. Model: jma_msm, run: 2026-05-10T00:00Z
+single_bisect_jma_msm_2026-05-29: HTTP 200 2026-05-29T09:00..2026-06-01T15:00 (79h nonnull / 168 returned)
+single_bisect_jma_msm_2026-05-19: HTTP 200 2026-05-19T09:00..2026-05-22T15:00 (79h nonnull / 168 returned)
+single_bisect_jma_msm_2026-05-14: HTTP 200 2026-05-14T09:00..2026-05-17T15:00 (79h nonnull / 168 returned)
+single_bisect_jma_msm_2026-05-12: HTTP 400 The requested model run is not available. Model: jma_msm, run: 2026-05-12T00:00Z
+single_bisect_jma_msm_2026-05-13: HTTP 200 2026-05-13T09:00..2026-05-16T15:00 (79h nonnull / 168 returned)
+=> jma_msm 最初に取得できた run: 2026-05-13T00:00Z
+
+## ホライズン長: forecast_days を伸ばすと何時間まで返るか
+single_horizon_ecmwf_ifs_fd16: HTTP 200 2026-09-01T09:00..2026-09-16T09:00 (361h nonnull / 384 returned)
+single_horizon_ecmwf_ifs025_fd16: HTTP 200 2026-09-01T09:00..2026-09-16T11:00 (363h nonnull / 384 returned)
+single_horizon_jma_msm_fd16: HTTP 200 2026-09-01T09:00..2026-09-04T15:00 (79h nonnull / 384 returned)
+
+## 初期時刻の刻み (00Z以外)
+single_runhour_ecmwf_ifs_2026-09-01T1200: HTTP 200 2026-09-01T21:00..2026-09-08T20:00 (168h nonnull / 168 returned)
+single_runhour_ecmwf_ifs_2026-09-01T0600: HTTP 200 2026-09-01T15:00..2026-09-07T15:00 (145h nonnull / 168 returned)
+single_runhour_ecmwf_ifs025_2026-09-01T1200: HTTP 200 2026-09-01T21:00..2026-09-08T20:00 (168h nonnull / 168 returned)
+single_runhour_ecmwf_ifs025_2026-09-01T0600: HTTP 200 2026-09-01T15:00..2026-09-07T17:00 (147h nonnull / 168 returned)
+single_runhour_jma_msm_2026-09-01T1200: HTTP 200 2026-09-01T21:00..2026-09-05T03:00 (79h nonnull / 168 returned)
+single_runhour_jma_msm_2026-09-01T0300: HTTP 200 2026-09-01T12:00..2026-09-03T03:00 (40h nonnull / 168 returned)
+single_runhour_jma_msm_2026-09-01T0600: HTTP 200 2026-09-01T15:00..2026-09-03T06:00 (40h nonnull / 168 returned)
+
+## 最新に近い run (昨日00Z) と、複数モデル同時指定
+single_recent_ecmwf_ifs025: HTTP 200 2026-09-17T09:00..2026-09-24T08:00 (168h nonnull / 168 returned)
+single_multimodel: HTTP 200 all null
+  hourly keys: ['time', 'temperature_2m_ecmwf_ifs025', 'temperature_2m_jma_msm']

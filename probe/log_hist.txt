@@ -1,0 +1,33 @@
+
+### hist_jma_msm  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.17702579498291016}
+  temperature_2m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[4.9, 4.8, 4.8]
+  cloud_cover                                      nonnull   24/  24  first=2026-09-10T00:00  sample=[90, 93, 91]
+  cloud_cover_low                                  nonnull   24/  24  first=2026-09-10T00:00  sample=[90, 93, 91]
+  cloud_cover_mid                                  nonnull   24/  24  first=2026-09-10T00:00  sample=[0, 0, 2]
+  cloud_cover_high                                 nonnull   24/  24  first=2026-09-10T00:00  sample=[0, 0, 0]
+  precipitation                                    nonnull   24/  24  first=2026-09-10T00:00  sample=[0.0, 0.0, 0.0]
+  wind_speed_10m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[6.1, 5.2, 4.8]
+  wind_gusts_10m                                   nonnull    0/  24  first=None  sample=[]
+
+### hist_ecmwf_ifs025  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.5900859832763672}
+  temperature_2m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[4.7, 4.7, 4.8]
+  cloud_cover                                      nonnull   24/  24  first=2026-09-10T00:00  sample=[100, 100, 100]
+  cloud_cover_low                                  nonnull   24/  24  first=2026-09-10T00:00  sample=[72, 69, 64]
+  cloud_cover_mid                                  nonnull   24/  24  first=2026-09-10T00:00  sample=[0, 0, 0]
+  cloud_cover_high                                 nonnull   24/  24  first=2026-09-10T00:00  sample=[0, 0, 0]
+  precipitation                                    nonnull   24/  24  first=2026-09-10T00:00  sample=[0.0, 0.0, 0.0]
+  wind_speed_10m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[3.9, 3.4, 3.1]
+  wind_gusts_10m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[20.5, 21.6, 22.3]
+
+### hist_ecmwf_ifs  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 0.37038326263427734}
+  temperature_2m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[5.3, 5.2, 5.3]
+  cloud_cover                                      nonnull   24/  24  first=2026-09-10T00:00  sample=[100, 100, 100]
+  cloud_cover_low                                  nonnull   24/  24  first=2026-09-10T00:00  sample=[100, 100, 100]
+  cloud_cover_mid                                  nonnull   24/  24  first=2026-09-10T00:00  sample=[0, 0, 0]
+  cloud_cover_high                                 nonnull   24/  24  first=2026-09-10T00:00  sample=[0, 0, 0]
+  precipitation                                    nonnull   24/  24  first=2026-09-10T00:00  sample=[0.0, 0.1, 0.0]
+  wind_speed_10m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[4.2, 5.1, 4.9]
+  wind_gusts_10m                                   nonnull   24/  24  first=2026-09-10T00:00  sample=[23.0, 27.4, 28.8]

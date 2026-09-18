@@ -1,0 +1,12 @@
+{
+ "tag": "err_run_on_forecast",
+ "url": "https://api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&models=ecmwf_ifs025&hourly=temperature_2m&run=2026-09-01T00%3A00",
+ "status": 400,
+ "headers": {
+  "Content-Type": "application/json; charset=utf-8"
+ },
+ "body": {
+  "reason": "Parameter 'run' must not be set",
+  "error": true
+ }
+}

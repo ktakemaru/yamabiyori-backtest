@@ -1,0 +1,66 @@
+
+### single_ecmwf_ifs_run20260901  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 64.59784507751465}
+  temperature_2m                                   nonnull  168/ 168  first=2026-09-01T09:00  sample=[15.4, 15.9, 16.7]
+  cloud_cover                                      nonnull  168/ 168  first=2026-09-01T09:00  sample=[22, 20, 23]
+  cloud_cover_low                                  nonnull  168/ 168  first=2026-09-01T09:00  sample=[20, 16, 18]
+  cloud_cover_mid                                  nonnull  168/ 168  first=2026-09-01T09:00  sample=[5, 9, 12]
+  cloud_cover_high                                 nonnull  168/ 168  first=2026-09-01T09:00  sample=[0, 0, 0]
+  precipitation                                    nonnull  167/ 168  first=2026-09-01T10:00  sample=[0.2, 0.2, 0.1]
+  wind_speed_10m                                   nonnull  168/ 168  first=2026-09-01T09:00  sample=[0.4, 2.0, 3.0]
+  wind_gusts_10m                                   nonnull  167/ 168  first=2026-09-01T10:00  sample=[20.2, 22.7, 22.7]
+
+### single_ecmwf_ifs025_run20260901  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 15.955686569213867}
+  temperature_2m                                   nonnull  168/ 168  first=2026-09-01T09:00  sample=[14.8, 15.3, 15.9]
+  cloud_cover                                      nonnull  168/ 168  first=2026-09-01T09:00  sample=[27, 25, 22]
+  cloud_cover_low                                  nonnull  168/ 168  first=2026-09-01T09:00  sample=[6, 4, 1]
+  cloud_cover_mid                                  nonnull  168/ 168  first=2026-09-01T09:00  sample=[0, 0, 0]
+  cloud_cover_high                                 nonnull  168/ 168  first=2026-09-01T09:00  sample=[0, 0, 0]
+  precipitation                                    nonnull  167/ 168  first=2026-09-01T10:00  sample=[0.3, 0.3, 0.3]
+  wind_speed_10m                                   nonnull  168/ 168  first=2026-09-01T09:00  sample=[1.1, 0.4, 0.5]
+  wind_gusts_10m                                   nonnull  105/ 168  first=2026-09-01T12:00  sample=[21.6, 22.7, 24.5]
+
+### single_jma_msm_run20260901  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 110.68093776702881}
+  temperature_2m                                   nonnull   79/ 168  first=2026-09-01T09:00  sample=[13.3, 14.2, 14.5]
+  cloud_cover                                      nonnull   79/ 168  first=2026-09-01T09:00  sample=[47, 44, 52]
+  cloud_cover_low                                  nonnull   79/ 168  first=2026-09-01T09:00  sample=[47, 44, 52]
+  cloud_cover_mid                                  nonnull   79/ 168  first=2026-09-01T09:00  sample=[15, 10, 10]
+  cloud_cover_high                                 nonnull   79/ 168  first=2026-09-01T09:00  sample=[0, 0, 0]
+  precipitation                                    nonnull   78/ 168  first=2026-09-01T10:00  sample=[0.0, 0.0, 0.1]
+  wind_speed_10m                                   nonnull   79/ 168  first=2026-09-01T09:00  sample=[5.1, 5.2, 5.9]
+  wind_gusts_10m                                   nonnull    0/ 168  first=None  sample=[]
+
+### singlestart_ecmwf_ifs_2024-03-13  HTTP 400
+  ERROR: The requested model run is not available. Model: ecmwf_ifs, run: 2024-03-13T00:00Z
+
+### singlestart_ecmwf_ifs_2024-03-14  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 93.70982646942139}
+  temperature_2m                                   nonnull  168/ 168  first=2024-03-14T09:00  sample=[-11.3, -9.2, -8.4]
+  cloud_cover                                      nonnull  168/ 168  first=2024-03-14T09:00  sample=[91, 83, 83]
+
+### singlestart_ecmwf_ifs_2024-03-15  HTTP 200
+  meta: {'latitude': 36.731106, 'longitude': 137.71654, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 21.90577983856201}
+  temperature_2m                                   nonnull  168/ 168  first=2024-03-15T09:00  sample=[-8.0, -6.4, -5.6]
+  cloud_cover                                      nonnull  168/ 168  first=2024-03-15T09:00  sample=[0, 0, 0]
+
+### singlestart_ecmwf_ifs025_2024-03-14  HTTP 400
+  ERROR: The requested model run is not available. Model: ecmwf_ifs025, run: 2024-03-14T00:00Z
+
+### singlestart_ecmwf_ifs025_2026-04-01  HTTP 400
+  ERROR: The requested model run is not available. Model: ecmwf_ifs025, run: 2026-04-01T00:00Z
+
+### singlestart_ecmwf_ifs025_2026-04-02  HTTP 200
+  meta: {'latitude': 36.75, 'longitude': 137.75, 'elevation': 2550.0, 'timezone': 'Asia/Tokyo', 'utc_offset_seconds': 32400, 'generationtime_ms': 64.60201740264893}
+  temperature_2m                                   nonnull  168/ 168  first=2026-04-02T09:00  sample=[-7.5, -7.7, -8.0]
+  cloud_cover                                      nonnull  168/ 168  first=2026-04-02T09:00  sample=[100, 100, 100]
+
+### singlestart_jma_msm_2026-04-01  HTTP 400
+  ERROR: The requested model run is not available. Model: jma_msm, run: 2026-04-01T00:00Z
+
+### singlestart_jma_msm_2026-04-02  HTTP 400
+  ERROR: The requested model run is not available. Model: jma_msm, run: 2026-04-02T00:00Z
+
+### singlestart_jma_msm_2026-04-03  HTTP 400
+  ERROR: The requested model run is not available. Model: jma_msm, run: 2026-04-03T00:00Z

@@ -1,0 +1,56 @@
+### prev_isolate_ecmwf_ifs025_cloud_cover_850hPa_previous_day1 HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value cloud_cover_850h
+### prev_isolate_ecmwf_ifs025_temperature_850hPa_previous_day1 HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value temperature_850h
+### prev_isolate_ecmwf_ifs025_cape_previous_day1 HTTP 200
+  cape_previous_day1                           nonnull    0/  24 sample=[]
+### prev_isolate_ecmwf_ifs025_precipitation_probability_previous_day1 HTTP 200
+  precipitation_probability_previous_day1      nonnull    0/  24 sample=[]
+### prev_isolate_ecmwf_ifs025_cloud_cover_850hPa HTTP 200
+  cloud_cover_850hPa                           nonnull   24/  24 sample=[70, 64]
+  cape                                         nonnull   24/  24 sample=[0.0, 0.0]
+### prev_isolate_jma_msm_cloud_cover_850hPa_previous_day1 HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value cloud_cover_850h
+### prev_isolate_jma_msm_temperature_850hPa_previous_day1 HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value temperature_850h
+### prev_isolate_jma_msm_cape_previous_day1 HTTP 200
+  cape_previous_day1                           nonnull    0/  24 sample=[]
+### prev_isolate_jma_msm_precipitation_probability_previous_day1 HTTP 200
+  precipitation_probability_previous_day1      nonnull    0/  24 sample=[]
+### prev_isolate_jma_msm_cloud_cover_850hPa HTTP 200
+  cloud_cover_850hPa                           nonnull   24/  24 sample=[58, 58]
+  cape                                         nonnull    0/  24 sample=[]
+### single_levels2_ecmwf_ifs025 HTTP 200
+  cloud_cover_925hPa                           nonnull  168/ 168 sample=[0, 0]
+  cloud_cover_850hPa                           nonnull  168/ 168 sample=[6, 2]
+  cloud_cover_700hPa                           nonnull  168/ 168 sample=[0, 0]
+  relative_humidity_925hPa                     nonnull  168/ 168 sample=[76, 75]
+  relative_humidity_850hPa                     nonnull  168/ 168 sample=[80, 78]
+  relative_humidity_700hPa                     nonnull  168/ 168 sample=[69, 68]
+  wind_speed_925hPa                            nonnull  168/ 168 sample=[1.6, 0.9]
+  wind_speed_850hPa                            nonnull  168/ 168 sample=[3.2, 3.7]
+  wind_speed_700hPa                            nonnull  168/ 168 sample=[23.4, 23.2]
+  temperature_925hPa                           nonnull  168/ 168 sample=[24.7, 24.9]
+  temperature_850hPa                           nonnull  168/ 168 sample=[19.6, 19.9]
+  temperature_700hPa                           nonnull  168/ 168 sample=[9.3, 9.6]
+  geopotential_height_925hPa                   nonnull  168/ 168 sample=[820.0, 818.0]
+  geopotential_height_850hPa                   nonnull  168/ 168 sample=[1547.0, 1546.0]
+  geopotential_height_700hPa                   nonnull  168/ 168 sample=[3190.0, 3190.0]
+  cape                                         nonnull  168/ 168 sample=[450.0, 410.0]
+### single_levels2_ecmwf_ifs HTTP 200
+  cloud_cover_925hPa                           nonnull    0/ 168 sample=[]
+  cloud_cover_850hPa                           nonnull    0/ 168 sample=[]
+  cloud_cover_700hPa                           nonnull    0/ 168 sample=[]
+  relative_humidity_925hPa                     nonnull    0/ 168 sample=[]
+  relative_humidity_850hPa                     nonnull    0/ 168 sample=[]
+  relative_humidity_700hPa                     nonnull    0/ 168 sample=[]
+  wind_speed_925hPa                            nonnull    0/ 168 sample=[]
+  wind_speed_850hPa                            nonnull    0/ 168 sample=[]
+  wind_speed_700hPa                            nonnull    0/ 168 sample=[]
+  temperature_925hPa                           nonnull    0/ 168 sample=[]
+  temperature_850hPa                           nonnull    0/ 168 sample=[]
+  temperature_700hPa                           nonnull    0/ 168 sample=[]
+  geopotential_height_925hPa                   nonnull    0/ 168 sample=[]
+  geopotential_height_850hPa                   nonnull    0/ 168 sample=[]
+  geopotential_height_700hPa                   nonnull    0/ 168 sample=[]
+  cape                                         nonnull  168/ 168 sample=[270.0, 170.0]

@@ -1,0 +1,15 @@
+
+### err_badvar  HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value no_such_variable_previous_day1
+
+### err_badmodel  HTTP 400
+  ERROR: Invalid value: Cannot initialize MultiDomains from invalid String value no_such_model
+
+### err_run_on_forecast  HTTP 400
+  ERROR: Parameter 'run' must not be set
+
+### err_single_norun  HTTP 400
+  ERROR: Parameter 'run' is required
+
+### err_single_badrun  HTTP 400
+  ERROR: The requested model run is not available. Model: ecmwf_ifs025, run: 2026-09-01T03:00Z

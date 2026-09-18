@@ -1,0 +1,12 @@
+{
+ "tag": "err_badvar",
+ "url": "https://previous-runs-api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&models=ecmwf_ifs025&hourly=no_such_variable_previous_day1&start_date=2026-09-10&end_date=2026-09-10",
+ "status": 400,
+ "headers": {
+  "Content-Type": "application/json; charset=utf-8"
+ },
+ "body": {
+  "reason": "Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value no_such_variable_previous_day1",
+  "error": true
+ }
+}

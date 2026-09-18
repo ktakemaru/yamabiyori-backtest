@@ -1,0 +1,34 @@
+
+### prev_levels_jma_msm HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value cloud_cover_925hPa_previous_day1,cloud_cover_850hPa_previous_day1,cloud_cover_700hPa_previous_day1,relative_humidity_925hPa_previous_day1,relative_humidity_850hPa_previous_day1,relative_humidity_700hPa_previous_day1,wind_speed_925hPa_previous_day1,wind_speed_850hPa_previous_day1,wind_speed_700hPa_previous_day1,temperature_925hPa_previous_day1,temperature_850hPa_previous_day1,temperature_700hPa_previous_day1,geopotential_height_925hPa_previous_day1,geopotential_height_850hPa_previous_day1,geopotential_height_700hPa_previous_day1,cape_previous_day1,precipitation_probability_previous_day1,cape,precipitation_probability,cloud_cover_850hPa
+
+### prev_levels_ecmwf_ifs025 HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value cloud_cover_925hPa_previous_day1,cloud_cover_850hPa_previous_day1,cloud_cover_700hPa_previous_day1,relative_humidity_925hPa_previous_day1,relative_humidity_850hPa_previous_day1,relative_humidity_700hPa_previous_day1,wind_speed_925hPa_previous_day1,wind_speed_850hPa_previous_day1,wind_speed_700hPa_previous_day1,temperature_925hPa_previous_day1,temperature_850hPa_previous_day1,temperature_700hPa_previous_day1,geopotential_height_925hPa_previous_day1,geopotential_height_850hPa_previous_day1,geopotential_height_700hPa_previous_day1,cape_previous_day1,precipitation_probability_previous_day1,cape,precipitation_probability,cloud_cover_850hPa
+
+### prev_levels_ecmwf_ifs HTTP 400
+  ERROR: Invalid value: Cannot initialize SurfacePressureAndHeightVariable<VariableAndPreviousDay, VariableOrSpread<ForecastPressureVariable>, ForecastHeightVariable> from invalid String value cloud_cover_925hPa_previous_day1,cloud_cover_850hPa_previous_day1,cloud_cover_700hPa_previous_day1,relative_humidity_925hPa_previous_day1,relative_humidity_850hPa_previous_day1,relative_humidity_700hPa_previous_day1,wind_speed_925hPa_previous_day1,wind_speed_850hPa_previous_day1,wind_speed_700hPa_previous_day1,temperature_925hPa_previous_day1,temperature_850hPa_previous_day1,temperature_700hPa_previous_day1,geopotential_height_925hPa_previous_day1,geopotential_height_850hPa_previous_day1,geopotential_height_700hPa_previous_day1,cape_previous_day1,precipitation_probability_previous_day1,cape,precipitation_probability,cloud_cover_850hPa
+
+### single_levels_jma_msm HTTP 200
+  cloud_cover_925hPa                               nonnull   81/ 168 sample=[0, 0]
+  cloud_cover_850hPa                               nonnull   81/ 168 sample=[2, 0]
+  cloud_cover_700hPa                               nonnull   81/ 168 sample=[20, 20]
+  relative_humidity_925hPa                         nonnull   81/ 168 sample=[67, 65]
+  relative_humidity_850hPa                         nonnull   81/ 168 sample=[78, 76]
+  relative_humidity_700hPa                         nonnull   81/ 168 sample=[81, 81]
+  wind_speed_925hPa                                nonnull   81/ 168 sample=[5.4, 5.0]
+  wind_speed_850hPa                                nonnull   81/ 168 sample=[6.3, 5.8]
+  wind_speed_700hPa                                nonnull   81/ 168 sample=[23.4, 22.9]
+  temperature_925hPa                               nonnull   81/ 168 sample=[23.5, 24.0]
+  temperature_850hPa                               nonnull   81/ 168 sample=[19.8, 20.2]
+  temperature_700hPa                               nonnull   81/ 168 sample=[9.6, 9.6]
+  geopotential_height_925hPa                       nonnull   81/ 168 sample=[813.95, 813.95]
+  geopotential_height_850hPa                       nonnull   81/ 168 sample=[1549.45, 1549.45]
+  geopotential_height_700hPa                       nonnull   81/ 168 sample=[3187.16, 3187.16]
+  cape                                             nonnull    0/ 168 sample=[]
+  precipitation_probability                        nonnull    0/ 168 sample=[]
+
+### single_levels_ecmwf_ifs025 HTTP 400
+  ERROR: The requested model run is not available. Model: ecmwf_ifs025_ensemble, run: 2026-09-01T00:00Z
+
+### single_levels_ecmwf_ifs HTTP 400
+  ERROR: The requested model run is not available. Model: ecmwf_ifs025_ensemble, run: 2026-09-01T00:00Z

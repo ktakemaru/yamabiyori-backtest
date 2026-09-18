@@ -1,0 +1,93 @@
+GET https://www.jma.go.jp/bosai/amedas/data/latest_time.txt -> 200 text/plain 25B
+latest_time.txt: 2026-09-18T21:10:00+09:00
+GET https://www.jma.go.jp/bosai/amedas/const/amedastable.json -> 200 application/json 187742B
+amedastable: 地点数 1286
+sample entry: 11001 {"type": "C", "elems": "11112010", "lat": [45, 31.2], "lon": [141, 56.1], "alt": 26, "kjName": "宗谷岬", "knName": "ソウヤミサキ", "enName": "Cape Soya"}
+elems 文字列のバリエーション数: 10  例: ['11111110', '11111111', '11112010', '10001011', '11110100']
+
+## 唐松岳(36.7595,137.7503) に近い順 15地点
+  48141 白馬       type=C alt=  703m dist= 12.0km elems=11112110
+  54876 平岩       type=C alt=  281m dist= 16.9km elems=01000000
+  48097 小谷       type=C alt=  550m dist= 17.4km elems=01000100
+  55063 宇奈月      type=C alt=  160m dist= 19.8km elems=01000000
+  48146 鬼無里      type=C alt=  778m dist= 20.7km elems=01000000
+  55022 朝日       type=C alt=   43m dist= 25.8km elems=11112110
+  48191 大町       type=C alt=  784m dist= 27.2km elems=11112110
+  55056 魚津       type=C alt=   48m dist= 29.5km elems=11112110
+  55166 上市       type=C alt=  296m dist= 30.8km elems=11112010
+  48196 信州新町     type=C alt=  509m dist= 32.2km elems=11112010
+  54711 糸魚川      type=C alt=    8m dist= 33.5km elems=11112010
+  55217 立山芦峅     type=C alt=  379m dist= 38.4km elems=01000000
+  48061 信濃町      type=C alt=  685m dist= 40.1km elems=11112110
+  48156 長野       type=A alt=  418m dist= 40.8km elems=11111111
+  48247 聖高原      type=C alt=  985m dist= 41.5km elems=01000000
+
+## 標高の高い順 30地点 (全国)
+  50066 富士山      type=F alt= 3775m dist= 178.7km elems=10001011
+  48601 御嶽山      type=C alt= 2195m dist= 101.2km elems=01000000
+  48681 宮田高原     type=C alt= 1660m dist= 110.3km elems=01000000
+  48346 上高地      type=C alt= 1510m dist=  57.8km elems=01000000
+  48172 笠岳       type=C alt= 1473m dist=  64.0km elems=01000000
+  49052 乙女湖      type=C alt= 1465m dist= 133.4km elems=01000000
+  48436 白樺湖      type=C alt= 1440m dist=  84.4km elems=01000000
+  48571 野辺山      type=C alt= 1350m dist= 110.9km elems=11112010
+  41166 奥日光      type=B alt= 1292m dist= 155.9km elems=11111111
+  73247 成就社      type=C alt= 1280m dist= 533.2km elems=01000000
+  48216 菅平       type=C alt= 1253m dist=  57.2km elems=11112110
+  42221 田代       type=C alt= 1230m dist=  71.7km elems=11112010
+  42121 草津       type=C alt= 1223m dist=  76.7km elems=11112110
+  36196 鷲倉       type=C alt= 1220m dist= 244.1km elems=11112010
+  51077 茶臼山      type=C alt= 1216m dist= 171.4km elems=01000000
+  48516 北相木      type=C alt= 1185m dist= 108.6km elems=01000000
+  87346 えびの高原    type=C alt= 1150m dist= 829.6km elems=01000000
+  48531 開田高原     type=C alt= 1130m dist=  92.3km elems=11112110
+  65127 護摩壇山     type=C alt= 1130m dist= 361.4km elems=01000000
+  42241 榛名山      type=C alt= 1088m dist= 105.2km elems=01000000
+  48556 高遠       type=C alt= 1075m dist=  95.2km elems=01000000
+  48466 奈川       type=C alt= 1068m dist=  74.9km elems=11112010
+  50427 天城山      type=C alt= 1066m dist= 239.2km elems=01000000
+  88101 紫尾山      type=C alt= 1060m dist= 860.7km elems=01000000
+  72176 竜王山      type=C alt= 1040m dist= 446.0km elems=01000000
+  48561 原村       type=C alt= 1017m dist=  97.3km elems=11112010
+  52181 六厩       type=C alt= 1015m dist= 100.7km elems=11112010
+  73321 獅子越峠     type=C alt= 1000m dist= 572.4km elems=01000000
+  48331 軽井沢      type=B alt=  999m dist=  85.0km elems=11111111
+  49256 山中       type=C alt=  992m dist= 176.5km elems=11112010
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260918211000.json -> 200 application/json 250758B
+map 地点数: 1286
+map の要素キーと出現地点数: {'temp': 916, 'humidity': 842, 'sun10m': 843, 'sun1h': 843, 'precipitation10m': 1285, 'precipitation1h': 1285, 'precipitation3h': 1285, 'precipitation24h': 1285, 'windDirection': 915, 'wind': 915, 'pressure': 154, 'normalPressure': 151, 'visibility': 151}
+   48141 白馬 {"temp": [17.6, 0], "humidity": [87, 0], "sun10m": [0, 0], "sun1h": [0.0, 0], "precipitation10m": [0.0, 0], "precipitation1h": [0.0, 0], "precipitation3h": [0.0, 0], "precipitation24h": [0.0, 0], "windDirection": [6, 0], "wind": [0.8, 0]}
+   54876 平岩 {"precipitation10m": [0.0, 0], "precipitation1h": [0.0, 0], "precipitation3h": [0.0, 0], "precipitation24h": [0.0, 0]}
+   48097 小谷 {"precipitation10m": [0.0, 0], "precipitation1h": [0.0, 0], "precipitation3h": [0.0, 0], "precipitation24h": [0.0, 0]}
+   55063 宇奈月 {"precipitation10m": [0.0, 0], "precipitation1h": [0.0, 0], "precipitation3h": [0.0, 0], "precipitation24h": [0.0, 0]}
+   48146 鬼無里 {"precipitation10m": [0.0, 0], "precipitation1h": [0.0, 0], "precipitation3h": [0.0, 0], "precipitation24h": [0.0, 0]}
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260918210000.json -> 200 application/json 349735B
+正時 map の要素キー: {'temp': 916, 'humidity': 843, 'snow1h': 1286, 'snow6h': 1286, 'snow12h': 1286, 'snow24h': 1286, 'sun10m': 843, 'sun1h': 843, 'precipitation10m': 1285, 'precipitation1h': 1285, 'precipitation3h': 1285, 'precipitation24h': 1285, 'windDirection': 915, 'wind': 915, 'pressure': 155, 'normalPressure': 151, 'visibility': 151, 'snow': 336, 'weather': 151}
+
+## 遡り確認 (map, 同時刻)
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260917210000.json -> 200 application/json 349603B
+  1日前 2026-09-17 21:00:00+09:00: HTTP 200
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260915210000.json -> 200 application/json 350230B
+  3日前 2026-09-15 21:00:00+09:00: HTTP 200
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260913210000.json -> 200 application/json 349634B
+  5日前 2026-09-13 21:00:00+09:00: HTTP 200
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260911210000.json -> 200 application/json 350058B
+  7日前 2026-09-11 21:00:00+09:00: HTTP 200
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260910210000.json -> 200 application/json 349701B
+  8日前 2026-09-10 21:00:00+09:00: HTTP 200
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260908210000.json -> 404 text/html 2203B
+  10日前 2026-09-08 21:00:00+09:00: HTTP 404
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260904210000.json -> 404 text/html 2203B
+  14日前 2026-09-04 21:00:00+09:00: HTTP 404
+GET https://www.jma.go.jp/bosai/amedas/data/map/20260819210000.json -> 404 text/html 2203B
+  30日前 2026-08-19 21:00:00+09:00: HTTP 404
+GET https://www.jma.go.jp/bosai/amedas/data/point/48141/20260918_21.json -> 200 application/json 977B
+point ファイルの時刻キー数: 2  先頭: ['20260918210000', '20260918211000']
+point 要素キー: ['prefNumber', 'observationNumber', 'temp', 'humidity', 'snow', 'snow1h', 'snow6h', 'snow12h', 'snow24h', 'sun10m', 'sun1h', 'precipitation10m', 'precipitation1h', 'precipitation3h', 'precipitation24h', 'windDirection', 'wind', 'maxTempTime', 'maxTemp', 'minTempTime', 'minTemp', 'gustTime', 'gustDirection', 'gust']
+  正時レコード例: {'20260918210000': {'prefNumber': 48, 'observationNumber': 141, 'temp': [17.6, 0], 'humidity': [87, 0], 'snow': [None, 5], 'snow1h': [0, 6], 'snow6h': [0, 6], 'snow12h': [0, 6], 'snow24h': [0, 6], 'sun10m': [0, 0], 'sun1h': [0.0, 0], 'precipitation10m': [0.0, 0], 'precipitation1h': [0.0, 0], 'precipitation3h': [0.0, 0], 'precipitation24h': [0.0, 0], 'windDirection': [8, 0], 'wind': [0.8, 0], 'maxTempTime': {'hour': 4, 'minute': 59}, 'maxTemp': [25.4, 0], 'minTempTime': {'hour': 20, 'minute': 4}, 'minTemp': [15.6, 0], 'gustTime': {'hour': 5, 'minute': 8}, 'gustDirection': [6, 0], 'gust': [5.4, 0]}}
+GET https://www.jma.go.jp/bosai/amedas/data/point/48141/20260911_21.json -> 200 application/json 8353B
+  point 7日前: HTTP 200
+GET https://www.jma.go.jp/bosai/amedas/data/point/48141/20260910_21.json -> 200 application/json 8383B
+  point 8日前: HTTP 200
+GET https://www.jma.go.jp/bosai/amedas/data/point/48141/20260908_21.json -> 404 text/html 2203B
+  point 10日前: HTTP 404

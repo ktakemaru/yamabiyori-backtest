@@ -1,0 +1,9 @@
+{
+ "tag": "single_bisect_jma_msm_2026-04-03",
+ "url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=36.7595&longitude=137.7503&timezone=Asia%2FTokyo&models=jma_msm&hourly=temperature_2m&run=2026-04-03T00%3A00",
+ "status": 400,
+ "body": {
+  "error": true,
+  "reason": "The requested model run is not available. Model: jma_msm, run: 2026-04-03T00:00Z"
+ }
+}

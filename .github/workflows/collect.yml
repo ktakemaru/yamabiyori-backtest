@@ -1,0 +1,82 @@
+name: collect
+
+# 系統1 (アメダス実況, 毎正時の map JSON) と 系統2 (Forecast API スナップショット, 6時間スロット) を
+# 3時間ごとに1つのジョブで収集し、データをコミットする。
+# - cron は数分〜数十分遅れる前提: アメダスは保持窓 (約8日) 内の未取得分を毎回全部取るので遅れても埋まる。
+#   スナップショットは「実行時刻-3h を含む 6h スロット」を取るので、遅れてもスロットは変わらない。
+# - 同一時刻の二重取得なし (取得済みファイルはスキップ)。
+# - データコミットが 3 時間ごとに発生するので、public リポジトリの「60日間コミット無しで schedule 停止」に
+#   引っかからない。
+# - 負荷: JMA へ約 8 リクエスト/日 (+バックフィル)、Open-Meteo へ 8 リクエスト/日。
+on:
+  schedule:
+    - cron: "20 */3 * * *"   # 収集: 00:20, 03:20, ... UTC (正時直後の混雑を避ける)
+    - cron: "50 0 * * *"     # 欠損チェック: 毎日 00:50 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 */3 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: python -m pip install -q requests
+
+      - name: Collect AMeDAS (system 1)
+        id: amedas
+        continue-on-error: true
+        run: python -m backtest.collect_amedas --max-requests 120
+
+      - name: Collect forecast snapshot (system 2)
+        id: snapshot
+        continue-on-error: true
+        run: python -m backtest.collect_forecast_snapshot
+
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/obs data/snapshots
+          if git diff --cached --quiet; then
+            echo "no new data"
+            exit 0
+          fi
+          git commit -m "data: collect $(date -u +%Y-%m-%dT%H:%MZ)"
+          # 並走ジョブとの競合に備えて rebase してから push (最大3回)
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && break
+            sleep 10
+          done
+
+      - name: Fail if a collector failed
+        if: steps.amedas.outcome == 'failure' || steps.snapshot.outcome == 'failure'
+        run: |
+          echo "amedas=${{ steps.amedas.outcome }} snapshot=${{ steps.snapshot.outcome }}"
+          exit 1
+
+  # 毎日1回、直近7日に欠損が無いかをチェック (欠損があればこのジョブが赤くなる)
+  check:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '50 0 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m backtest.check_collection --days 7
