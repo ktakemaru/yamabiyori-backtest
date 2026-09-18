@@ -227,6 +227,7 @@ def main(argv=None):
                      fmt(threshold_sweep(sr, obs, ["cloud_cover_at_station", "cloud_cover_at_summit", "cloud_cover", "cloud_cover_low"]))))
     text = "\n\n".join(f"## {title}\n{body}" for title, body in sections)
     text += chr(10) * 2 + main_discrimination(args.sr, args.obs)
+    text += chr(10) * 2 + main_lead_analysis(args.sr, args.obs)
     print(text)
     if args.out:
         args.out.write_text(text, encoding="utf-8")
@@ -295,6 +296,110 @@ def main_discrimination(sr_path: Path = SR_PATH, obs_path: Path = OBS_PATH, out:
     if out:
         out.write_text(text, encoding="utf-8")
     return text
+
+
+# ---------------------------------------------------------------- D. lead 日別の減衰曲線 / DeLong 検定 / 分布確認
+LEAD_DAYS = [1, 2, 3, 5, 7, 10, 14]
+AUC_FLOOR = 0.55   # 暫定の実用下限
+
+
+def lead_day_expr():
+    """lead_day d = lead_hours ∈ [24(d−1), 24d)。"""
+    return ((pl.col("lead_hours") // 24) + 1).cast(pl.Int16).alias("lead_day")
+
+
+def lead_day_pairs(sr: pl.DataFrame, obs: pl.DataFrame, predictor: str) -> pl.DataFrame:
+    """discrimination_pairs と同じ結合だが lead_bucket ではなく lead_day (1..) を付ける。fuji ペアは山頂自身の日照。"""
+    parts = []
+    for station, site in SITE_BY_STATION.items():
+        o = obs_wide(obs, station, ["sun1h"])
+        if o.is_empty():
+            continue
+        f = sr.filter((pl.col("site_id") == site["site_id"]) & (pl.col("variable") == predictor) & pl.col("level_hpa").is_null())
+        if f.is_empty():
+            continue
+        j = hourly_mean_prev(f).join(o, on="valid_time", how="inner")
+        j = j.with_columns(pl.col("valid_time").dt.convert_time_zone("Asia/Tokyo").dt.hour().alias("hour_jst"))
+        j = j.filter(pl.col("hour_jst").is_in(DAY_HOURS_JST) & pl.col("value_h1").is_not_null())
+        j = j.with_columns((pl.col("sun1h") >= SUN_SUNNY_H).alias("obs_sunny"), lead_day_expr(),
+                           pl.lit(f"{site['site_id']}/{station}").alias("pair"), pl.lit(predictor).alias("predictor"))
+        parts.append(j.select("predictor", "pair", "model", "run_utc", "lead_day", "valid_time", "value_h1", "obs_sunny"))
+    return pl.concat(parts) if parts else pl.DataFrame()
+
+
+def lead_curve(sr: pl.DataFrame, obs: pl.DataFrame, lead_days=LEAD_DAYS) -> pl.DataFrame:
+    """4 系統 (山頂雲量 / 観測所標高雲量 / 地上全雲量: 麓 4 地点プール, 富士山頂: 山頂雲量 vs 山頂日照) × model × lead_day の
+    AUC / CI / PSS_max / n。無い lead は n=0 の行として残す (14 日は forecast_days=10 で取得したため無い)。"""
+    rows = []
+    systems = [("summit_vs_foot", "cloud_cover_at_summit", False), ("station_vs_foot", "cloud_cover_at_station", False),
+               ("total_cloud_vs_foot", "cloud_cover", False), ("fuji_summit_vs_summit", "cloud_cover_at_summit", True)]
+    for name, predictor, fuji_only in systems:
+        d = lead_day_pairs(sr, obs, predictor)
+        if d.is_empty():
+            continue
+        d = d.filter(pl.col("pair").str.starts_with("fuji")) if fuji_only else d.filter(~pl.col("pair").str.starts_with("fuji"))
+        for model in config.MODELS:
+            for ld in lead_days:
+                g = d.filter((pl.col("model") == model) & (pl.col("lead_day") == ld))
+                if g.is_empty():
+                    rows.append({"system": name, "model": model, "lead_day": ld, "n": 0, "n_sunny": 0, "auc": None,
+                                 "auc_se": None, "auc_ci95_lo": None, "pss_max": None, "cloud_th_at_pss_max": None})
+                    continue
+                cloud = g["value_h1"].to_list(); lab = g["obs_sunny"].to_list(); sc = [-c for c in cloud]
+                a, se, n1, n0 = skill.auc(sc, lab)
+                pm, th = skill.pss_max(sc, lab)
+                rows.append({"system": name, "model": model, "lead_day": ld, "n": len(lab), "n_sunny": n1, "auc": a, "auc_se": se,
+                             "auc_ci95_lo": (a - 1.96 * se) if a is not None else None, "pss_max": pm,
+                             "cloud_th_at_pss_max": (-th) if th is not None else None})
+    out = pl.DataFrame(rows)
+    return out.with_columns((pl.col("auc_ci95_lo") < AUC_FLOOR).alias("below_floor_ci")).sort("system", "model", "lead_day")
+
+
+def delong_summit_vs_total(sr: pl.DataFrame, obs: pl.DataFrame, lead_days=(1, 2, 3, 5, 7, 10)) -> pl.DataFrame:
+    """同一事例 (pair, model, run, valid_time) で山頂雲量 vs 地上全雲量の AUC 差を DeLong 検定。麓 4 地点プールと富士山頂を別に。"""
+    a = lead_day_pairs(sr, obs, "cloud_cover_at_summit").rename({"value_h1": "summit"})
+    b = lead_day_pairs(sr, obs, "cloud_cover").rename({"value_h1": "total"}).select("pair", "model", "run_utc", "valid_time", "total")
+    j = a.join(b, on=["pair", "model", "run_utc", "valid_time"], how="inner")
+    rows = []
+    for scope, sub in [("foot4", j.filter(~pl.col("pair").str.starts_with("fuji"))), ("fuji", j.filter(pl.col("pair").str.starts_with("fuji")))]:
+        for model in config.MODELS:
+            for ld in lead_days:
+                g = sub.filter((pl.col("model") == model) & (pl.col("lead_day") == ld))
+                if g.height < 20:
+                    continue
+                r = skill.delong_paired_test([-x for x in g["summit"].to_list()], [-x for x in g["total"].to_list()], g["obs_sunny"].to_list())
+                if r is None:
+                    continue
+                rows.append({"scope": scope, "model": model, "lead_day": ld, "n": g.height, "auc_summit": r["auc_a"], "auc_total": r["auc_b"],
+                             "diff": r["diff"], "se_diff": r["se"], "z": r["z"], "p_two_sided": r["p"]})
+    return pl.DataFrame(rows).sort("scope", "model", "lead_day")
+
+
+def summit_cloud_distribution(sr: pl.DataFrame, max_lead_h: int = 72) -> pl.DataFrame:
+    """分位点マッピングの事前確認: 昼間・lead<72h の山頂雲量 (T-1,T 平均ではなく生値) の分布。"""
+    f = sr.filter((pl.col("variable") == "cloud_cover_at_summit") & pl.col("level_hpa").is_null() & (pl.col("lead_hours") < max_lead_h))
+    f = f.with_columns(pl.col("valid_time").dt.convert_time_zone("Asia/Tokyo").dt.hour().alias("h")).filter(pl.col("h").is_in(DAY_HOURS_JST))
+    bins = [0, 1e-9, 5, 10, 20, 30, 50, 70, 90, 100.0001]
+    labels = ["=0", "(0,5]", "(5,10]", "(10,20]", "(20,30]", "(30,50]", "(50,70]", "(70,90]", "(90,100]"]
+    rows = []
+    for (model, site), g in f.group_by(["model", "site_id"], maintain_order=True):
+        v = g["value"]
+        hist = {lab: int(((v > lo) & (v <= hi)).sum()) if lo > 0 else int((v == 0).sum()) for lab, lo, hi in zip(labels, bins[:-1], bins[1:])}
+        rows.append({"model": model, "site_id": site, "n": v.len(), "n_unique": v.n_unique(), "share_exact_0": float((v == 0).mean()),
+                     "share_le_1": float((v <= 1).mean()), "median": float(v.median()), "p90": float(v.quantile(0.9)), **hist})
+    return pl.DataFrame(rows).sort("model", "site_id")
+
+
+def main_lead_analysis(sr_path: Path = SR_PATH, obs_path: Path = OBS_PATH) -> str:
+    sr = pl.read_parquet(sr_path)
+    obs = pl.read_parquet(obs_path)
+    lc = lead_curve(sr, obs)
+    dl = delong_summit_vs_total(sr, obs)
+    dist = summit_cloud_distribution(sr)
+    nl = chr(10)
+    return ("## D-1 lead 日別 減衰曲線 (lead_day d = [24(d-1), 24d) h; 昼間; below_floor_ci = 95%CI 下限 < 0.55)" + nl + fmt(lc)
+            + nl * 2 + "## D-2 DeLong 検定: 山頂雲量 vs 地上全雲量 (同一事例, 両側 p)" + nl + fmt(dl, 4)
+            + nl * 2 + "## D-3 山頂雲量 (昼間, lead<72h) の分布: 分位点マッピングの事前確認" + nl + fmt(dist))
 
 
 if __name__ == "__main__":

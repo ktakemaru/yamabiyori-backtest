@@ -97,3 +97,26 @@ def test_logp_interpolation_weight():
     # 650hPa は 700 と 600 の ln(p) で約 0.48 の位置
     w = (math.log(650) - math.log(700)) / (math.log(600) - math.log(700))
     assert 0.47 < w < 0.49
+
+
+def test_auc_and_pss_basic():
+    from backtest import skill
+    a, se, n1, n0 = skill.auc([0.9, 0.8, 0.3, 0.2], [True, True, False, False])
+    assert a == 1.0 and n1 == 2 and n0 == 2
+    a, *_ = skill.auc([0.5, 0.5, 0.5, 0.5], [True, True, False, False])
+    assert a == 0.5
+    p, pod, pofd, *_ = skill.pss([True, True, True, True], [True, False, True, False])
+    assert p == 0.0 and pod == 1.0 and pofd == 1.0
+    best, th = skill.pss_max([0.9, 0.8, 0.3, 0.2], [True, True, False, False])
+    assert best == 1.0 and th == 0.8
+
+
+def test_delong_paired_test_identical_and_different():
+    from backtest import skill
+    lab = [True, False] * 20
+    s = [0.6 + 0.01 * i if l else 0.4 - 0.01 * i for i, l in enumerate(lab)]
+    r = skill.delong_paired_test(s, s, lab)
+    assert r["diff"] == 0 and r["p"] == 1.0
+    noise = [x + (0.5 if i % 3 == 0 else -0.5) for i, x in enumerate(s)]   # 一方を劣化させる
+    r = skill.delong_paired_test(s, noise, lab)
+    assert r["auc_a"] > r["auc_b"] and r["diff"] > 0 and 0 <= r["p"] <= 1 and r["se"] > 0

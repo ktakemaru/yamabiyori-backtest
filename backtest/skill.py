@@ -76,3 +76,47 @@ def pss_max(scores, labels):
         if val > best:
             best, best_th = val, th
     return best, best_th
+
+
+def _delong_components(scores, labels):
+    """DeLong の構造成分 (V10: 陽性ごと, V01: 陰性ごと) と AUC。auc() と同じ計算を分けて返す。"""
+    import bisect
+    pos = [s for s, l in zip(scores, labels) if l]
+    neg = [s for s, l in zip(scores, labels) if not l]
+    n1, n0 = len(pos), len(neg)
+    neg_sorted, pos_sorted = sorted(neg), sorted(pos)
+    v10 = []
+    for s in pos:
+        lo, hi = bisect.bisect_left(neg_sorted, s), bisect.bisect_right(neg_sorted, s)
+        v10.append((lo + 0.5 * (hi - lo)) / n0)
+    v01 = []
+    for s in neg:
+        lo, hi = bisect.bisect_left(pos_sorted, s), bisect.bisect_right(pos_sorted, s)
+        v01.append(((n1 - hi) + 0.5 * (hi - lo)) / n1)
+    return sum(v10) / n1, v10, v01
+
+
+def delong_paired_test(scores_a, scores_b, labels):
+    """同一標本・同一ラベルに対する 2 つのスコアの AUC 差の DeLong 検定 (DeLong, DeLong & Clarke-Pearson 1988)。
+    scores_a/b は同じ順序 (同じ事例) で与える。返り値 dict: auc_a, auc_b, diff, se, z, p (両側, 正規近似), n_pos, n_neg。"""
+    pairs = [(a, b, l) for a, b, l in zip(scores_a, scores_b, labels) if a is not None and b is not None]
+    sa, sb, lab = [p[0] for p in pairs], [p[1] for p in pairs], [p[2] for p in pairs]
+    n1, n0 = sum(1 for l in lab if l), sum(1 for l in lab if not l)
+    if n1 < 2 or n0 < 2:
+        return None
+    auc_a, v10a, v01a = _delong_components(sa, lab)
+    auc_b, v10b, v01b = _delong_components(sb, lab)
+
+    def cov(x, y, mx, my):
+        return sum((xi - mx) * (yi - my) for xi, yi in zip(x, y)) / (len(x) - 1)
+    s10 = [[cov(v10a, v10a, auc_a, auc_a), cov(v10a, v10b, auc_a, auc_b)],
+           [cov(v10b, v10a, auc_b, auc_a), cov(v10b, v10b, auc_b, auc_b)]]
+    s01 = [[cov(v01a, v01a, auc_a, auc_a), cov(v01a, v01b, auc_a, auc_b)],
+           [cov(v01b, v01a, auc_b, auc_a), cov(v01b, v01b, auc_b, auc_b)]]
+    # Var(auc_a - auc_b) = c' (S10/n1 + S01/n0) c, c = (1, -1)
+    var = (s10[0][0] - 2 * s10[0][1] + s10[1][1]) / n1 + (s01[0][0] - 2 * s01[0][1] + s01[1][1]) / n0
+    diff = auc_a - auc_b
+    se = math.sqrt(var) if var > 0 else 0.0
+    z = diff / se if se > 0 else (0.0 if diff == 0 else float("inf"))
+    p = math.erfc(abs(z) / math.sqrt(2)) if se > 0 else (1.0 if diff == 0 else 0.0)
+    return {"auc_a": auc_a, "auc_b": auc_b, "diff": diff, "se": se, "z": z, "p": p, "n_pos": n1, "n_neg": n0}
