@@ -89,11 +89,11 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
 
 ```powershell
 # 気圧面 (RH/GPH/雲量 @1000/925/850/700/600hPa) を 1 ラン × 5 地点で取得。再開可能。初回アクセスは 20〜230 秒/ラン
-.env\Scripts\python.exe -m backtest.fetch_single_runs --start 2026-06-11 --end 2026-09-17 --hours 0            # 00Z
-.env\Scripts\python.exe -m backtest.fetch_single_runs --start 2026-06-11 --end 2026-09-17 --hours 0 12 --models ecmwf_ifs025
-.env\Scripts\python.exe -m backtest.parse_single_runs     # → data/parquet/single_runs_long.parquet (本体と同じ内挿の派生列付き)
-.env\Scripts\python.exe -m backtest.obs_import            # → data/parquet/observation_long.parquet (アメダス map + 既存 etrn キャッシュ)
-.env\Scripts\python.exe -m backtest.trackb_eval --out docs/track-b-tables.txt
+.\venv\Scripts\python.exe -m backtest.fetch_single_runs --start 2026-06-11 --end 2026-09-17 --hours 0            # 00Z
+.\venv\Scripts\python.exe -m backtest.fetch_single_runs --start 2026-06-11 --end 2026-09-17 --hours 0 12 --models ecmwf_ifs025
+.\venv\Scripts\python.exe -m backtest.parse_single_runs     # → data/parquet/single_runs_long.parquet (本体と同じ内挿の派生列付き)
+.\venv\Scripts\python.exe -m backtest.obs_import            # → data/parquet/observation_long.parquet (アメダス map + 既存 etrn キャッシュ)
+.\venv\Scripts\python.exe -m backtest.trackb_eval --out docs/track-b-tables.txt
 ```
 
 - `backtest/summit_interp.py` は本体 core.py L293-339 の内挿の移植。`tests/test_summit_interp.py` が本体を import
