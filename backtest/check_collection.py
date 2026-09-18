@@ -102,7 +102,7 @@ def check_ensemble(days: int, now: datetime, ens_dir: Path = collect_ensemble.SN
         last_day -= timedelta(days=1)
     existing = sorted(ens_dir.rglob("00Z_*.json.gz")) if ens_dir.exists() else []
     if not existing:
-        return ["  (no ensemble snapshots yet)"], ["ensemble: no data files"]
+        return ["  (no 00Z ensemble snapshots yet; expected from the first 09:20Z/12:20Z job after deployment)"], []
     earliest = datetime.strptime(existing[0].parent.name, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     day = max(last_day - timedelta(days=days - 1), earliest)
     while day <= last_day:

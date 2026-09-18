@@ -120,3 +120,37 @@ def test_delong_paired_test_identical_and_different():
     noise = [x + (0.5 if i % 3 == 0 else -0.5) for i, x in enumerate(s)]   # 一方を劣化させる
     r = skill.delong_paired_test(s, noise, lab)
     assert r["auc_a"] > r["auc_b"] and r["diff"] > 0 and 0 <= r["p"] <= 1 and r["se"] > 0
+
+
+def test_quantile_map_primitives():
+    from backtest import quantile_map as qm
+    # PAV: 増加している所だけ併合される (重み付き平均)
+    assert qm.pav_decreasing([0.9, 0.5, 0.7, 0.1], [1, 1, 1, 1]) == [0.9, 0.6, 0.6, 0.1]
+    assert qm.pav_decreasing([0.9, 0.2, 0.8, 0.1], [1, 3, 1, 1]) == pytest.approx([0.9, 0.35, 0.35, 0.1])
+    # 分位 (mid-rank) とビン
+    cdf = [1.0, 2.0, 2.0, 4.0]
+    assert qm.quantile_of(cdf, 2.0) == pytest.approx(0.5) and qm.quantile_of(cdf, 0.5) == 0.0 and qm.quantile_of(cdf, 9.0) == 1.0
+    assert qm.qbin_of(0.999) == 9 and qm.qbin_of(1.0) == 9 and qm.qbin_of(0.0) == 0
+    assert [qm.rawbin_of(v) for v in (0, 0.5, 10, 10.1, 100)] == [0, 1, 1, 2, 10]
+
+
+def test_quantile_map_fit_apply_and_brier():
+    from backtest import quantile_map as qm
+    # 2 地点: 0% は晴れ 3/4、正値は雲量が増えるほど曇り
+    rows = []
+    for pair in ("a", "b"):
+        rows += [(pair, 0.0, True)] * 30 + [(pair, 0.0, False)] * 10
+        for v in range(1, 101):
+            rows.append((pair, float(v), v <= 40))
+    train = pl.DataFrame(rows, schema=["pair", "value_h1", "obs_sunny"], orient="row")
+    cdfs = qm.site_cdfs(train)
+    m = qm.fit_qmap(train, cdfs)
+    assert m["p_zero"] == pytest.approx(0.75) and m["n_zero"] == 80
+    assert m["p_bin"] == sorted(m["p_bin"], reverse=True) and m["p_bin"][0] == 1.0 and m["p_bin"][-1] == 0.0
+    assert qm.apply_qmap(m, cdfs["a"], 0.0) == 0.75 and qm.apply_qmap(m, cdfs["a"], 5.0) == 1.0 and qm.apply_qmap(m, cdfs["a"], 95.0) == 0.0
+    # Brier 分解: 完全予報は 0、定数予報は reliability=(p−ȳ)², resolution=0
+    p = [1.0, 0.0, 1.0, 0.0]; y = [True, False, True, False]
+    d = qm.brier_decomposition(p, y)
+    assert d["brier"] == 0.0 and d["resolution"] == pytest.approx(0.25) and d["uncertainty"] == 0.25
+    d = qm.brier_decomposition([0.7] * 4, y)
+    assert d["brier"] == pytest.approx(0.29) and d["reliability"] == pytest.approx(0.04) and d["resolution"] == 0.0

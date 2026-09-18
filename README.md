@@ -109,6 +109,8 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
 - `backtest/summit_interp.py` は本体 core.py L293-339 の内挿の移植。`tests/test_summit_interp.py` が本体を import
   (読み取りのみ) して同一入力・同一出力を確認する (本体が無い環境ではスキップ)。
 - `backtest/tracka_eval.py`: Track A (Previous Runs, 通年) の地上全雲量で季節依存を確認 → `docs/track-a-season-tables.txt`。
+- `backtest/quantile_map.py`: 山頂雲量 → 晴れる確率の分位点マッピング (0% 塊は経験確率 1 点 + 正値は地点別 CDF の分位ビン) を
+  leave-one-site-out で Brier / 信頼度図により評価 → `docs/quantile-map-tables.txt` (findings §9)。暖候期のみ・本体には入れない。
 - 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)、本体への推奨は [docs/product-recommendations.md](docs/product-recommendations.md)。
 
 ## テスト
