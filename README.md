@@ -13,8 +13,29 @@
 |---|---|---|
 | 0 | API 実測・本体構造把握・設計 | 済 |
 | 1 | Previous Runs API から 5 地点 × 2 モデル × 過去 12 ヶ月 (リード 1〜7 日) を一括取得 → Parquet | 済 (`data/parquet/forecast_long.parquet`) |
-| 2 | GitHub Actions で日次収集: アメダス実況 + Forecast API スナップショット (層別雲量) | 実装済、稼働は GitHub 側で有効化が必要 (下記) |
-| 3 | Track B: Single Runs の気圧面から本体の山頂雲量を再現し、① RH 予報誤差 / ②③ 診断+内挿誤差 を分離 | 進行中 (00Z ラン約4割取得、[docs/track-b-findings.md](docs/track-b-findings.md)) |
+| 2 | GitHub Actions で日次収集: アメダス実況 + Forecast API スナップショット (層別雲量) + ECMWF アンサンブル全メンバー + 本体の確信度 | 稼働中 (2026-09-18〜; 系統3 は 09-19〜) |
+| 3 | Track B: Single Runs の気圧面から本体の山頂雲量を再現し、① RH 予報誤差 / ②③ 診断+内挿誤差 を分離 → AUC/PSS、lead 減衰、DeLong、分位点写像、降水閾値 | 済 (2026-09-19 で基盤完成; [docs/track-b-findings.md](docs/track-b-findings.md), [docs/product-recommendations.md](docs/product-recommendations.md) R1〜R9) |
+
+**2026-09-19 で基盤は完成。以降は「次にやること (待ち項目)」のデータが揃うまで新規解析はしない。**
+
+## 次にやること (待ち項目、2026-09-19 記載)
+
+半年後に再開するための一覧。各項目: 何が揃えば再開できるか / 回すスクリプト。前提として Actions の `collect` が緑で
+`python -m backtest.check_collection --days 30` に欠損が無いこと (欠損があれば埋められない — アメダスは 8 日、Ensemble API は 4 日しか遡れない)。
+
+| # | 項目 | 再開の目安 | 揃うべきデータ | 回すもの |
+|---|---|---|---|---|
+| 1 | **確信度スコアの較正** (本体 `compute_ensemble_confidence_by_day` の cloud/precip/temp 確信度と実況の関係; 0〜40pt / 0〜8°C の暫定閾値の再調整) | 蓄積 3〜6 か月 → **2027 年初** | `data/snapshots/ensemble/<日>/00Z_*_members.json.gz` と `data/snapshots/plugin_confidence/<日>/00Z.json.gz` が 90 日分以上 + 同期間のアメダス (`data/obs/amedas/`)、富士山頂は 7〜8 月の日照だけなので夏を 1 回含むと良い | 未作成。`parse_single_runs.py` に倣って members → long Parquet (site, run, valid_time, variable, member, value) を作り、`skill.py` の AUC/Brier で「スプレッド (or wet_fraction) が小さいほど当たるか」を lead 別に。plugin_confidence の出力 (日別 confidence) は本体の git hash 別に集計 |
+| 2 | **寒候期の検証** (RH 由来の山頂雲量が冬型の下層雲・筋状雲でも順序性を保つか; R6) | 次の冬 → **2027 年 3 月** | `data/snapshots/forecast/` の 2026-12〜2027-02 (気圧面 7 面付き) + 同期間のアメダス日照 (`data/obs/amedas/`; 富士山頂は冬に日照無し) | `python -m backtest.parse_single_runs` の Forecast スナップショット版が必要 (スナップショットはラン混在なので lead は `fetched_at` 基準の近似; api-findings §10.1) → `trackb_eval.py` の `lead_day_pairs` / `report` を季節フィルタ付きで。Track A 側は `python -m backtest.tracka_eval` をそのまま (Previous Runs を `python -m backtest.fetch_previous_runs --start 2026-10-01 --end 2027-03-31` で追加取得してから) |
+| 3 | **層別雲量 (low/mid/high) の通年評価** (本体の雲海判定・層別表示に精度の裏付けを付ける) | Forecast スナップショット 1 年 → **2027 年 9 月** | `data/snapshots/forecast/` 12 か月 (`cloud_cover_low/mid/high` + 7 面) + アメダス日照 12 か月 | 未作成。#2 のスナップショット→Parquet 変換を流用し、`trackb_eval.discrimination_table` を predictor = cloud_cover_low/mid/high/at_summit で。雲海は「山頂晴れ × 麓曇り」の同時分割表 (麓アメダス日照 + 山頂は富士山頂日照 or ひまわり) |
+| 4 | **夜間検証** (夜明け前の雲海判定・星空; R7) | 未着手・データ源から | ひまわり赤外 (雲頂温度) を実況にする。JMA の ひまわり画像 (`www.jma.go.jp/bosai/himawari/`) は PNG タイルで数値でない → NICT ひまわりアーカイブ (gridded, 要確認) か気象庁の配信を Phase 0 と同じ手順で実測してから | 未作成。まず `probe/` に Phase 0 と同じプローブを書き、api-findings に §12 として事実だけ記録。実況が取れると分かってから収集系統 4 を Phase 2 の型で追加 |
+| 5 | **稜線風** (本体の稜線風・windward/lee 判定; R7) | **恒久課題** (実況が存在しない: 富士山も 2004 年に風観測終了) | 代替: 高標高アメダス (野辺山 1,350m・菅平 1,253m 等) の 10m 風で「格子風 → 地点風」の系統誤差だけ見る、または登山記録 SNS の風の記述 (本体側 `scratch_past_date.py` の手法) | Phase 1 の Parquet に `wind_speed_10m` (m/s) は保存済み。`quicklook.py` の MAE を wind に広げるだけなら即可能だが、稜線の検証にはならないことを明記して |
+
+その他の小さい待ち:
+- R4 (富士山 RH の乾きバイアス): 富士山の湿度・気圧は毎日貯まっている (`data/obs/amedas/`)。晴天日が 20 日分以上入ったら `trackb_eval.fuji_rh_table` を再実行。
+- lead 14 日 / 12Z ラン: 意図的に未取得 (findings §4.4)。必要なら `python -m backtest.fetch_single_runs --hours 12`。
+- 本体側の変更 (R1, R8) を入れたら、その git hash 以降の `plugin_confidence` スナップショットは別集計になる (hash が envelope に入っている)。
+
 
 ## セットアップ (Windows, Python 3.13 で確認)
 
