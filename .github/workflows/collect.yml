@@ -79,4 +79,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - run: python -m pip install -q requests
       - run: python -m backtest.check_collection --days 7
