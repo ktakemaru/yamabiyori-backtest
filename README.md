@@ -96,6 +96,9 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
 .\venv\Scripts\python.exe -m backtest.trackb_eval --out docs/track-b-tables.txt
 ```
 
+- `backtest/jma_etrn.py --station fuji --start ... --end ...`: 気象庁「過去の気象データ検索」から富士山官署の時別値
+  (夏季のみ日照あり, api-findings §10.5) を取得 (1 日 1 ページ, 2 秒間隔)。`obs_import` が取り込む。
+- `backtest/skill.py`: ROC AUC (DeLong SE 付き) と Peirce skill score。`trackb_eval` の §C で閾値に依存しない識別性能を出す。
 - `backtest/summit_interp.py` は本体 core.py L293-339 の内挿の移植。`tests/test_summit_interp.py` が本体を import
   (読み取りのみ) して同一入力・同一出力を確認する (本体が無い環境ではスキップ)。
 - 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)。

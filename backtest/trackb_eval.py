@@ -226,9 +226,75 @@ def main(argv=None):
     sections.append(("B 閾値スイープ (lead < 72h, 全地点プール): 予報雲量のスケール診断 (係数調整ではない)",
                      fmt(threshold_sweep(sr, obs, ["cloud_cover_at_station", "cloud_cover_at_summit", "cloud_cover", "cloud_cover_low"]))))
     text = "\n\n".join(f"## {title}\n{body}" for title, body in sections)
+    text += chr(10) * 2 + main_discrimination(args.sr, args.obs)
     print(text)
     if args.out:
         args.out.write_text(text, encoding="utf-8")
+
+
+
+
+# ---------------------------------------------------------------- C. 閾値に依存しない識別性能 (AUC / PSS)
+from . import skill  # noqa: E402
+
+
+def discrimination_pairs(sr: pl.DataFrame, obs: pl.DataFrame, predictor: str) -> pl.DataFrame:
+    """(pair, model, lead_bucket, valid_time, score=-cloud, obs_sunny) の行を全地点分作る。"""
+    parts = []
+    for station, site in SITE_BY_STATION.items():
+        o = obs_wide(obs, station, ["sun1h"])
+        if o.is_empty():
+            continue
+        f = sr.filter((pl.col("site_id") == site["site_id"]) & (pl.col("variable") == predictor) & pl.col("level_hpa").is_null())
+        if f.is_empty():
+            continue
+        j = hourly_mean_prev(f).join(o, on="valid_time", how="inner")
+        j = j.with_columns(pl.col("valid_time").dt.convert_time_zone("Asia/Tokyo").dt.hour().alias("hour_jst"))
+        j = j.filter(pl.col("hour_jst").is_in(DAY_HOURS_JST) & pl.col("value_h1").is_not_null())
+        j = j.with_columns((pl.col("sun1h") >= SUN_SUNNY_H).alias("obs_sunny"), lead_bucket_expr(),
+                           pl.lit(f"{site['site_id']}/{station}").alias("pair"), pl.lit(predictor).alias("predictor"))
+        parts.append(j.filter(pl.col("lead_bucket").is_not_null()).select("predictor", "pair", "model", "lead_bucket", "valid_time", "value_h1", "obs_sunny"))
+    return pl.concat(parts) if parts else pl.DataFrame()
+
+
+def discrimination_table(pairs_df: pl.DataFrame, by_pair: bool) -> pl.DataFrame:
+    """AUC (晴れが高スコア = −雲量), DeLong SE, 95%CI 下限, PSS@50%, PSS_max とその閾値。標本数併記。"""
+    if pairs_df.is_empty():
+        return pl.DataFrame()
+    keys = ["predictor", "model", "lead_bucket"] + (["pair"] if by_pair else [])
+    rows = []
+    for key, g in pairs_df.group_by(keys, maintain_order=True):
+        cloud = g["value_h1"].to_list()
+        lab = g["obs_sunny"].to_list()
+        scores = [-c for c in cloud]
+        a, se, n1, n0 = skill.auc(scores, lab)
+        p50, pod, pofd, *_ = skill.pss([c <= CLOUD_CLEAR_PCT for c in cloud], lab)
+        pmax, th = skill.pss_max(scores, lab)
+        rows.append({**dict(zip(keys, key)), "n": len(lab), "n_sunny": n1, "obs_sunny_rate": n1 / len(lab),
+                     "auc": a, "auc_se": se, "auc_ci95_lo": (a - 1.96 * se) if a is not None else None,
+                     "pss_at_50": p50, "pod_at_50": pod, "pofd_at_50": pofd,
+                     "pss_max": pmax, "cloud_th_at_pss_max": (-th) if th is not None else None})
+    return pl.DataFrame(rows).sort(keys)
+
+
+def discrimination_report(sr: pl.DataFrame, obs: pl.DataFrame,
+                          predictors=("cloud_cover_at_station", "cloud_cover_at_summit", "cloud_cover")) -> dict:
+    allp = pl.concat([d for d in (discrimination_pairs(sr, obs, p) for p in predictors) if not d.is_empty()])
+    return {"pooled": discrimination_table(allp, by_pair=False), "by_pair": discrimination_table(allp, by_pair=True)}
+
+
+def main_discrimination(sr_path: Path = SR_PATH, obs_path: Path = OBS_PATH, out: Path = None) -> str:
+    sr = pl.read_parquet(sr_path)
+    obs = pl.read_parquet(obs_path)
+    rep = discrimination_report(sr, obs)
+    cols = ["predictor", "model", "lead_bucket", "n", "n_sunny", "obs_sunny_rate", "auc", "auc_se", "auc_ci95_lo", "pss_at_50", "pss_max", "cloud_th_at_pss_max"]
+    text = ("## C-1 識別性能 (全地点プール): AUC (雲量を符号反転したスコアで晴れを識別), PSS@50%, PSS_max\n"
+            + fmt(rep["pooled"].select(cols) if not rep["pooled"].is_empty() else rep["pooled"])
+            + "\n\n## C-2 同上 地点別\n"
+            + fmt(rep["by_pair"].select(["pair"] + cols) if not rep["by_pair"].is_empty() else rep["by_pair"]))
+    if out:
+        out.write_text(text, encoding="utf-8")
+    return text
 
 
 if __name__ == "__main__":

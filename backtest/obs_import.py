@@ -76,8 +76,30 @@ def rows_from_etrn_cache(etrn_dir: Path) -> list[dict]:
     return rows
 
 
-def build(obs_dir: Path = OBS_DIR, etrn_dir: Path = DEFAULT_ETRN_DIR) -> pl.DataFrame:
-    rows = rows_from_amedas_maps(obs_dir) + rows_from_etrn_cache(etrn_dir)
+ETRN_FETCH_DIR = config.DATA_DIR / "obs" / "etrn"
+ETRN_FETCH_FIELDS = ["pressure", "precipitation1h", "temp", "dewpoint", "humidity", "wind", "sun1h"]
+
+
+def rows_from_etrn_fetch(etrn_fetch_dir: Path = ETRN_FETCH_DIR) -> list[dict]:
+    """jma_etrn.py が取得した官署時別値 (富士山など)。source="etrn_fetch"。"""
+    rows = []
+    if not etrn_fetch_dir.exists():
+        return rows
+    for station_dir in sorted(p for p in etrn_fetch_dir.iterdir() if p.is_dir()):
+        for f in sorted(station_dir.glob("*.json")):
+            doc = json.loads(f.read_text(encoding="utf-8"))
+            d = date.fromisoformat(doc["date_jst"])
+            for rec in doc["rows"]:
+                t = (datetime(d.year, d.month, d.day, tzinfo=JST) + timedelta(hours=int(rec["hour"]))).astimezone(timezone.utc)
+                for element in ETRN_FETCH_FIELDS:
+                    v = rec.get(element)
+                    rows.append({"station_id": doc["station_id"], "source": "etrn_fetch", "valid_time": t.isoformat(),
+                                 "element": element, "value": v if isinstance(v, (int, float)) else None, "quality_flag": None})
+    return rows
+
+
+def build(obs_dir: Path = OBS_DIR, etrn_dir: Path = DEFAULT_ETRN_DIR, etrn_fetch_dir: Path = ETRN_FETCH_DIR) -> pl.DataFrame:
+    rows = rows_from_amedas_maps(obs_dir) + rows_from_etrn_cache(etrn_dir) + rows_from_etrn_fetch(etrn_fetch_dir)
     if not rows:
         return pl.DataFrame(schema=SCHEMA)
     df = pl.DataFrame(rows, schema_overrides={"value": pl.Float32, "quality_flag": pl.Int8})
