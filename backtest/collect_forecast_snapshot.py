@@ -37,11 +37,16 @@ META_SETTLE_SECONDS = 600   # last_run_modification_time からこれだけ待�
 SNAPSHOT_DIR = config.DATA_DIR / "snapshots" / "forecast"
 SLOT_HOURS = 6
 SLOT_DELAY_HOURS = 3   # ランの配信遅れを見込んで、実行時刻の3時間前を含むスロットを取る
+# 気圧面 (2026-09-19 追加): 本体 core.LEVEL_STACK_HPA と同じ 7 面。Single Runs では jma_msm の 900/800hPa が null
+# だが通常 Forecast API には存在するので、本体実運用と同じ解像度で山頂内挿を検証できるデータをここで蓄積する。
+# cloud_cover_XXXhPa は本体が内挿元にしている値そのもの (Open-Meteo が RH から診断) なので一緒に取る。
+LEVELS_HPA = [1000, 925, 900, 850, 800, 700, 600]
+LEVEL_VARS = [f"{k}_{lv}hPa" for lv in LEVELS_HPA for k in ("relative_humidity", "geopotential_height", "cloud_cover")]
 HOURLY_VARS = [
     "cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
     "precipitation", "precipitation_probability", "temperature_2m", "relative_humidity_2m",
     "wind_speed_10m", "wind_gusts_10m", "cape",
-]
+] + LEVEL_VARS
 FORECAST_DAYS = 16
 SLEEP_SECONDS = 2.0
 

@@ -124,8 +124,10 @@ def test_slot_for(now, expected):
 def test_build_params_covers_all_sites_and_layered_cloud():
     p = cs.build_params("ecmwf_ifs025")
     assert len(p["latitude"].split(",")) == len(config.SITES)
-    for v in ["cloud_cover_low", "cloud_cover_mid", "cloud_cover_high"]:
+    for v in ["cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
+              "relative_humidity_900hPa", "geopotential_height_800hPa", "cloud_cover_600hPa"]:
         assert v in p["hourly"].split(",")
+    assert len(cs.LEVEL_VARS) == 7 * 3
     assert p["timezone"] == "UTC" and p["wind_speed_unit"] == "ms" and p["forecast_days"] == 16
 
 
