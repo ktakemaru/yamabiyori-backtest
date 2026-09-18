@@ -110,3 +110,17 @@ def test_plugin_confidence_reproduces_snapshot_without_touching_plugin_dir(tmp_p
     assert after_pyc == before_pyc and after_cache == before_cache
     ident = pcs.plugin_identity(PLUGIN_DIR)
     assert ident["sha256"].get("mountain_weather_detail.py") and (ident["git_hash"] is None or len(ident["git_hash"]) == 40)
+
+
+def test_rate_limit_retry_waits_then_succeeds(monkeypatch):
+    class S:
+        def __init__(self):
+            self.n = 0
+
+        def get(self, url, params=None, timeout=None):
+            self.n += 1
+            return FakeResponse({"error": True, "reason": "Minutely API request limit exceeded"}, status=429) if self.n < 3 else FakeResponse({"ok": 1})
+    waits = []
+    monkeypatch.setattr(ce.time, "sleep", lambda s: waits.append(s))
+    r = ce.get_with_rate_limit_retry(S(), "https://x/", {}, timeout=1)
+    assert r.status_code == 200 and waits == [ce.RATE_LIMIT_WAIT_SECONDS] * 2

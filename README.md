@@ -76,8 +76,30 @@ py -3.13 -m venv venv
 .\venv\Scripts\python.exe -m backtest.check_collection --days 7   # 欠損チェック (欠損があれば終了コード 1)
 ```
 
-系統3 の背景 (アンサンブルはリード別に遡れないので今から貯めるしかない) と、無料枠に対するリクエスト量の見積りは
+系統3 の背景 (アンサンブルはリード別に遡れないので今から貯めるしかない) と、無料枠に対するリクエスト換算は
 api-findings §11。Actions では本体を `plugin/` に読み取り専用で checkout する (`.gitignore` 済み、push しない)。
+
+#### 系統3 のリクエスト換算と縮小案
+
+Open-Meteo の無料枠 (600/分, 5,000/時, 10,000/日, IP ごと・固定窓) は **member 列を変数として数える**
+(`weight = Σ_地点 max(1, 変数数 × 51 / 10 × 日数 / 14)`; サーバ実装と 429 の実測で確認, api-findings §11.5)。
+現在の 1 日の合計は ≈ 870 call (系統2 146 + 3a 641 + 3b 82) で日次上限の 9%。ただし 3a の members リクエスト 1 本 (641) が
+分当たり上限 600 を超えるため、直後の ensemble-api リクエストは 429 になる → 両スクリプトは 429 で 65 秒待って再試行する。
+
+上限に近づいた場合 (共有ランナー IP で 429 が続く、系統を増やす等) は次の順で縮小する。式から効果を先に出しておく:
+
+| 縮小案 | 3a の call | 備考 |
+|---|---|---|
+| 現行: 5 地点 × 22 変数 × 16 日 | 641 | 1 本で分上限超え (直後 429) |
+| 日数 16 → 14 (`FORECAST_DAYS`) | 561 | 15〜16 日目は ENS でも AUC ≈ 0.55 (findings §4.4) なので失うものは少ない。**分上限内に収まる** |
+| 変数 22 → 14 (`LEVELS_HPA` の temperature / geopotential_height を落とす) | 408 | 山頂内挿の GPH が無くなる (標準大気で代用可)。温度スプレッドは本体の temp_confidence 用なので 3b 側で残る |
+| 地点 5 → 3 (`config.SITES` を 唐松岳・富士山・八ヶ岳 に) | 385 | 日光白根 (山頂実況なし) と安達太良 (2026-09-10 以降しか実況なし) を落とす |
+| 日数 14 + 変数 14 | 357 | |
+| 地点 3 + 変数 14 + 日数 14 | 214 | 系統2 と合わせても 1 分窓で 429 にならない |
+
+変更手順: `backtest/collect_ensemble.py` の `FORECAST_DAYS` / `LEVEL_VARS` / `HOURLY_VARS`、`backtest/config.py` の `SITES`。
+`tests/test_ensemble.py::test_build_params_native_3h_and_vars` を合わせて直す。保存済みファイルはそのまま (envelope に `request` が入っている
+ので後から何を取ったか分かる)。
 
 ### GitHub 側で必要な設定
 
@@ -109,6 +131,8 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
 - `backtest/summit_interp.py` は本体 core.py L293-339 の内挿の移植。`tests/test_summit_interp.py` が本体を import
   (読み取りのみ) して同一入力・同一出力を確認する (本体が無い環境ではスキップ)。
 - `backtest/tracka_eval.py`: Track A (Previous Runs, 通年) の地上全雲量で季節依存を確認 → `docs/track-a-season-tables.txt`。
+- `backtest/precip_threshold.py`: 降水閾値 0.1mm/h の実害 (予報 ≥0.1 のうち実況 <0.5mm の割合、0.1 張り付き、閾値候補の分割表)
+  → `docs/precip-threshold-tables.txt` (product-recommendations R8)。
 - `backtest/quantile_map.py`: 山頂雲量 → 晴れる確率の分位点マッピング (0% 塊は経験確率 1 点 + 正値は地点別 CDF の分位ビン) を
   leave-one-site-out で Brier / 信頼度図により評価 → `docs/quantile-map-tables.txt` (findings §9)。暖候期のみ・本体には入れない。
 - 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)、本体への推奨は [docs/product-recommendations.md](docs/product-recommendations.md)。

@@ -2,7 +2,7 @@
 import gzip
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import polars as pl
@@ -154,3 +154,24 @@ def test_quantile_map_fit_apply_and_brier():
     assert d["brier"] == 0.0 and d["resolution"] == pytest.approx(0.25) and d["uncertainty"] == 0.25
     d = qm.brier_decomposition([0.7] * 4, y)
     assert d["brier"] == pytest.approx(0.29) and d["reliability"] == pytest.approx(0.04) and d["resolution"] == 0.0
+
+
+def test_precip_threshold_tables():
+    from backtest import precip_threshold as pt
+    t0 = datetime(2026, 6, 1, 0, 0, tzinfo=timezone.utc)
+    rows = []
+    # 12 時間 (3h ブロック = 終了時刻 1-3, 4-6, 7-9 時): 予報 0.1 が 6h (実況 0.0), 予報 1.0 が 3h (実況 1.0), 予報 0 が 3h (実況 0)
+    for i in range(12):
+        fc = 0.1 if 1 <= i <= 6 else (1.0 if 7 <= i <= 9 else 0.0)
+        ob = 0.0 if 1 <= i <= 6 else (1.0 if 7 <= i <= 9 else 0.0)
+        rows.append(("a/1", "ecmwf_ifs025", 1, t0 + timedelta(hours=i), fc, ob, ob >= 0.5))
+    d = pl.DataFrame(rows, schema=["pair", "model", "lead_days", "valid_time", "fc_mm", "precipitation1h", "obs_wet"], orient="row")
+    fa = pt.false_alarm_at_body_threshold(d, ["model", "lead_days"]).row(0, named=True)
+    assert fa["n_fc_wet"] == 9 and fa["share_obs_0.0"] == pytest.approx(6 / 9) and fa["share_fc_exactly_0.1"] == pytest.approx(6 / 9)
+    th = pt.threshold_table(d, ["model", "lead_days"])
+    r01 = th.filter(pl.col("threshold_mm") == 0.1).row(0, named=True)
+    r05 = th.filter(pl.col("threshold_mm") == 0.5).row(0, named=True)
+    assert r01["bias"] == 3.0 and r01["far"] == pytest.approx(6 / 9) and r01["pod"] == 1.0
+    assert r05["bias"] == 1.0 and r05["far"] == 0.0 and r05["pss"] == 1.0
+    vd = pt.value_distribution(d).row(0, named=True)
+    assert vd["share_3h_block_constant(pos)"] == 1.0   # 各 3h ブロック内は同値

@@ -33,7 +33,7 @@ from pathlib import Path
 import requests
 
 from . import config
-from .collect_ensemble import ENSEMBLE_URL, RUN_HOURS, fetch_meta, run_from_meta, save_gz
+from .collect_ensemble import ENSEMBLE_URL, RUN_HOURS, fetch_meta, get_with_rate_limit_retry, run_from_meta, save_gz
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def make_nocache_fetch(session: requests.Session, detail, store: dict):
     def fetch_ensemble(lat, lon, hourly, days=detail.FORECAST_DAYS, force_refresh=False):
         params = {"latitude": lat, "longitude": lon, "forecast_days": days,
                   "timezone": "Asia/Tokyo", "models": detail.ENSEMBLE_MODEL, "hourly": hourly}
-        r = session.get(ENSEMBLE_URL, params=params, timeout=300)
+        r = get_with_rate_limit_retry(session, ENSEMBLE_URL, params, timeout=300)
         body = r.json()
         if r.status_code != 200 or body.get("error"):
             raise requests.exceptions.RequestException(f"ensemble API HTTP {r.status_code}: {body}")
@@ -93,7 +93,7 @@ def fetch_sunrise(session: requests.Session, mountains: list, days: int) -> list
     """本体 fetch_forecast() と同じ出所 (Forecast API の daily sunrise/sunset, Asia/Tokyo) を 1 リクエストで。"""
     params = {"latitude": ",".join(str(m["lat"]) for m in mountains), "longitude": ",".join(str(m["lon"]) for m in mountains),
               "daily": "sunrise,sunset", "timezone": "Asia/Tokyo", "forecast_days": days}
-    r = session.get(FORECAST_URL, params=params, timeout=120)
+    r = get_with_rate_limit_retry(session, FORECAST_URL, params, timeout=120)
     body = r.json()
     if r.status_code != 200 or (isinstance(body, dict) and body.get("error")):
         raise RuntimeError(f"forecast API (sunrise): HTTP {r.status_code} {body}")

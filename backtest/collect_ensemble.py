@@ -68,6 +68,22 @@ def fetch_meta(session: requests.Session) -> dict:
         return {"error": True, "reason": str(e)}
 
 
+RATE_LIMIT_WAIT_SECONDS = 65   # 無料枠の分当たり上限 (600 call) は固定 1 分窓なので、429 なら次の窓まで待つ
+RATE_LIMIT_MAX_WAITS = 3
+
+
+def get_with_rate_limit_retry(session: requests.Session, url: str, params: dict, timeout: int):
+    """HTTP 429 (Minutely API request limit exceeded) なら RATE_LIMIT_WAIT_SECONDS 待って再試行。
+    members リクエスト 1 本が重み 641 call (api-findings §11.5) で分当たり 600 を超えるため、直後のリクエストは 429 になる。"""
+    for i in range(RATE_LIMIT_MAX_WAITS + 1):
+        r = session.get(url, params=params, timeout=timeout)
+        if r.status_code != 429 or i == RATE_LIMIT_MAX_WAITS:
+            return r
+        log.info("HTTP 429 (rate limit); waiting %ds (%d/%d)", RATE_LIMIT_WAIT_SECONDS, i + 1, RATE_LIMIT_MAX_WAITS)
+        time.sleep(RATE_LIMIT_WAIT_SECONDS)
+    return r
+
+
 def save_gz(path: Path, obj: dict) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
@@ -86,7 +102,7 @@ def take_snapshot(session: requests.Session, run: datetime, meta_before: dict, s
                   snapshot_dir: Path = SNAPSHOT_DIR) -> Path:
     sites = sites or config.SITES
     params = build_params(sites)
-    r = session.get(ENSEMBLE_URL, params=params, timeout=300)
+    r = get_with_rate_limit_retry(session, ENSEMBLE_URL, params, timeout=300)
     try:
         body = r.json()
     except ValueError:

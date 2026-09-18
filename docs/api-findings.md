@@ -479,22 +479,42 @@ Ensemble API の「過去 3〜4 日」はラン混在の継ぎ足し (Forecast A
   cache/ も __pycache__ も新規に作られないことを確認した (テスト `test_plugin_confidence_reproduces_snapshot_without_touching_plugin_dir`)。
 - `check_collection` に「UTC 日ごとに 00Z の members + confidence が揃っているか (当日分は 15Z 以降に期待)」を追加。
 
-### 11.5 Open-Meteo 無料枠に対するリクエスト量の見積り
+### 11.5 Open-Meteo 無料枠に対するリクエスト換算 (2026-09-19 に実測とサーバ実装で確定)
 
-公式 (pricing ページ, 2026-09-19 閲覧): 無料 API は非商用、**10,000 calls/日、5,000/時、600/分**。
-1 call = 1 HTTP リクエストが基本だが「**10 変数超、または 1 地点 2 週間超は複数 call として小数で数える**」
-(例: 2 週間 × 15 変数 = 1.5 call、4 週間 = 3.0 call)。**アンサンブルの member 列を「変数」として数えるかは公表されていない (未確認)**
-ので、下限 (基本変数で数える) と上限 (51 列すべてを変数として数える) の両方を示す。
+**レスポンスヘッダに使用量は返らない** (`probe/log_ensemble_headers.txt`: Date / Content-Type / Transfer-Encoding / Connection /
+Content-Encoding のみ)。差分計測はできないので、(a) サーバ実装 (open-meteo/open-meteo, main) の式と (b) 429 の出方で確認した。
 
-| 系統 | HTTP リクエスト/日 | 重み付き call/日 (下限〜上限) |
+**(a) 換算式 (サーバ実装)** — `Sources/App/Helper/Writer/ForecastApiResult.swift` `calculateQueryWeight()` と
+`Sources/App/Controllers/ForecastapiController.swift` L309:
+
+```
+nVariables = (hourly + minutely_15 + current + daily の変数数) × Σ_domains countEnsembleMember   ← ecmwf_ifs025 のアンサンブルは 50 + 1 = 51
+weight     = Σ_locations max(1, max(nVariables / 10, nVariables / 10 × days / 14))
+```
+
+= **member 列は変数として数える (× 51)**。制限は `RateLimiter.swift`: IP ごとに 600/分・5,000/時・10,000/日、
+**固定窓** (分カウンタは毎分クリア、時は毎正時、日は 00 UTC)。判定はリクエスト**前**に「カウンタ ≥ 上限なら 429」、加算はレスポンス後。
+→ 1 本で上限を超えるリクエストは通るが、同じ窓内の次のリクエストが 429 になる。ホスト (api / ensemble-api) ごとに別プロセスなので
+カウンタも別。
+
+**(b) 実測** (`probe/log_ensemble_headers.txt` 末尾): members リクエスト (5 地点 × 22 変数 × 51 列 × 16 日 = 式で **641 call**) を
+投げた直後、同じ ensemble-api への 1 変数リクエストが **+5〜20 秒で 4 回連続 HTTP 429**
+`Minutely API request limit exceeded. Please try again in one minute.`、+25 秒以降は 200 (分窓がクリアされた)。
+api.open-meteo.com 側は同時刻に 200。→ 式どおり member 列が数えられている (22 変数を素直に数えた 18 call なら 429 は出ない)。
+
+| 系統 | HTTP リクエスト/日 | 換算 call/日 (式) |
 |---|---|---|
-| 2: Forecast API スナップショット (4 スロット × 2 モデル, 5 地点 × 32 変数 × 16 日) | 8 (+メタ 16) | 8 × 5 × 3.2 × 1.3 ≈ **165** |
-| 3: Ensemble members (1 ラン/日, 5 地点 × 22 変数 × 51 列 × 16 日) | 1 (+メタ 2) | 5 × 2.2 × 1.3 ≈ **14** 〜 5 × 112 × 1.3 ≈ **730** |
-| 3: 本体確信度 (5 地点 × 3 変数 × 51 列 × 14 日 + 日の出 1) | 6 (+メタ 1) | 5 × 1 + 1 ≈ **6** 〜 5 × 15.3 + 1 ≈ **78** |
-| 合計 | 15 (+メタ 19) | **≈ 185 〜 975 call/日** |
+| 2: Forecast API スナップショット (4 スロット × 2 モデル, 5 地点 × 32 変数 × 16 日) | 8 (+メタ 16) | 8 × 5 × max(1, 3.2 × 16/14) = **146** |
+| 3a: Ensemble members (1 ラン/日, 5 地点 × 22 変数 × 51 列 × 16 日) | 1 (+メタ 2) | 5 × 112.2 × 16/14 = **641** |
+| 3b: 本体確信度 (5 地点 × 3 変数 × 51 列 × 14 日 = 15.3 each、+ 日の出 5 地点 × 1) | 6 (+メタ 1) | 76.5 + 5 = **82** |
+| 合計 | 15 (+メタ 19、静的ファイルなので恐らく無課金) | **≈ 870 call/日** (10,000 の 9%) |
 
-- 上限でも 10,000/日の **10% 未満**。時間当たりは最大のジョブ (12:20Z など、系統2 + 系統3 が同時) で ≈ 850 (上限) < 5,000/時。
-- 分当たり: 系統3 の members リクエストは 1 本で上限換算 730 だが、実測では HTTP 200 (4.2 秒) で拒否されなかった。
-  本体自身も同型 (3 変数 × 51 列 × 14 日) のリクエストを 1 座ごとに投げる設計なので、本体の運用と同程度。
-- Phase 1 の Previous Runs 一括取得 (5 地点 × 2 モデル × 12 か月、63 列/リクエスト) は一度きりで、日次には含まれない。
-- Track B の Single Runs 追加取得 (12Z など) を再開する場合は別途見積る。
+- 時間当たり最大 (09:20Z or 12:20Z のジョブ): 146/4 + 641 + 82 ≈ **760** < 5,000。
+- **分当たり**: members 1 本 (641) が 600 を超えるので、**直後の ensemble-api リクエストは 429 になる**。対応: `collect_ensemble` /
+  `plugin_confidence_snapshot` は 429 なら 65 秒待って再試行 (`get_with_rate_limit_retry`、最大 3 回)。Actions の初回実行
+  (2026-09-18 21:20Z) では両方 skip だったので未発現; ローカルでは members の 38 秒後に確信度リクエストが通っていた (分窓がたまたま切り替わった)。
+- 注意: 制限は **IP ごと**。GitHub Actions のランナー IP は他のユーザーと共有されるので、自分の使用量と無関係に 429 が出る可能性がある
+  (同じ 65 秒待ちで吸収)。
+- 本体側への含意: 本体の確信度は 1 座あたり 3 変数 × 51 列 × 14 日 = **15.3 call**。76 座で一斉に取ると 1,163 call (分当たり上限を 2 分で超える)。
+  現状の本体は診断モードで 1 座だけなので問題無いが、探索モード (ランキング) に確信度を広げる場合はこの換算で設計する必要がある。
+- 上限に近づいた場合の縮小案は README「系統3 の縮小案」。

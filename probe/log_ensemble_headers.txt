@@ -1,0 +1,38 @@
+
+### forecast_small HTTP 200 1KB
+  Date: Fri, 18 Sep 2026 21:38:03 GMT
+  Content-Type: application/json; charset=utf-8
+  Transfer-Encoding: chunked
+  Connection: keep-alive
+  Content-Encoding: deflate
+
+### ensemble_small HTTP 200 11KB
+  Date: Fri, 18 Sep 2026 21:38:06 GMT
+  Content-Type: application/json; charset=utf-8
+  Transfer-Encoding: chunked
+  Connection: keep-alive
+  Content-Encoding: deflate
+
+### ensemble_big HTTP 200 83KB
+  Date: Fri, 18 Sep 2026 21:38:09 GMT
+  Content-Type: application/json; charset=utf-8
+  Transfer-Encoding: chunked
+  Connection: keep-alive
+  Content-Encoding: deflate
+
+### ensemble_1var_2days HTTP 200 15KB
+  Date: Fri, 18 Sep 2026 21:38:12 GMT
+  Content-Type: application/json; charset=utf-8
+  Transfer-Encoding: chunked
+  Connection: keep-alive
+  Content-Encoding: deflate
+members request HTTP 200 3361KB 4.4s  (weight by source formula: 5*max(1,1122/10*16/14)=641)
+  + 5s small ensemble request HTTP 429 {"reason":"Minutely API request limit exceeded. Please try again in one minute.","error":true}
+  +10s small ensemble request HTTP 429 {"error":true,"reason":"Minutely API request limit exceeded. Please try again in one minute."}
+  +15s small ensemble request HTTP 429 {"reason":"Minutely API request limit exceeded. Please try again in one minute.","error":true}
+  +20s small ensemble request HTTP 429 {"reason":"Minutely API request limit exceeded. Please try again in one minute.","error":true}
+  +25s small ensemble request HTTP 200 
+  +30s small ensemble request HTTP 200 
+  +35s small ensemble request HTTP 200 
+  +40s small ensemble request HTTP 200 
+  forecast API (•ÊƒzƒXƒg) HTTP 200
