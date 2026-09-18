@@ -101,7 +101,8 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
 - `backtest/skill.py`: ROC AUC (DeLong SE 付き) と Peirce skill score。`trackb_eval` の §C で閾値に依存しない識別性能を出す。
 - `backtest/summit_interp.py` は本体 core.py L293-339 の内挿の移植。`tests/test_summit_interp.py` が本体を import
   (読み取りのみ) して同一入力・同一出力を確認する (本体が無い環境ではスキップ)。
-- 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)。
+- `backtest/tracka_eval.py`: Track A (Previous Runs, 通年) の地上全雲量で季節依存を確認 → `docs/track-a-season-tables.txt`。
+- 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)、本体への推奨は [docs/product-recommendations.md](docs/product-recommendations.md)。
 
 ## テスト
 

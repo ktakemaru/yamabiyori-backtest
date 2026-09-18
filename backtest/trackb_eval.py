@@ -228,6 +228,7 @@ def main(argv=None):
     text = "\n\n".join(f"## {title}\n{body}" for title, body in sections)
     text += chr(10) * 2 + main_discrimination(args.sr, args.obs)
     text += chr(10) * 2 + main_lead_analysis(args.sr, args.obs)
+    text += chr(10) * 2 + main_zero_bucket(args.sr, args.obs)
     print(text)
     if args.out:
         args.out.write_text(text, encoding="utf-8")
@@ -400,6 +401,31 @@ def main_lead_analysis(sr_path: Path = SR_PATH, obs_path: Path = OBS_PATH) -> st
     return ("## D-1 lead 日別 減衰曲線 (lead_day d = [24(d-1), 24d) h; 昼間; below_floor_ci = 95%CI 下限 < 0.55)" + nl + fmt(lc)
             + nl * 2 + "## D-2 DeLong 検定: 山頂雲量 vs 地上全雲量 (同一事例, 両側 p)" + nl + fmt(dl, 4)
             + nl * 2 + "## D-3 山頂雲量 (昼間, lead<72h) の分布: 分位点マッピングの事前確認" + nl + fmt(dist))
+
+
+
+
+def zero_bucket_sunny_rate(sr: pl.DataFrame, obs: pl.DataFrame, lead_days=(1, 2, 3, 5, 7, 10)) -> pl.DataFrame:
+    """分位点マッピングの事前確認 (2): 予報の山頂雲量が厳密に 0% (T-1h, T とも 0) のときの実況晴れ率を
+    地点 × モデル × lead 日で出す。比較用に (0,10]%、>50%、全体の晴れ率も併記。"""
+    d = lead_day_pairs(sr, obs, "cloud_cover_at_summit")
+    if d.is_empty():
+        return pl.DataFrame()
+    d = d.filter(pl.col("lead_day").is_in(list(lead_days)))
+    g = (d.group_by(["pair", "model", "lead_day"]).agg(
+            pl.len().alias("n"), pl.col("obs_sunny").mean().alias("sunny_rate_all"),
+            (pl.col("value_h1") == 0).sum().alias("n_zero"), (pl.col("value_h1") == 0).mean().alias("share_zero"),
+            pl.col("obs_sunny").filter(pl.col("value_h1") == 0).mean().alias("sunny_rate_given_zero"),
+            pl.col("obs_sunny").filter((pl.col("value_h1") > 0) & (pl.col("value_h1") <= 10)).mean().alias("sunny_rate_given_0_10"),
+            pl.col("obs_sunny").filter(pl.col("value_h1") > 50).mean().alias("sunny_rate_given_gt50"))
+         .sort(["pair", "model", "lead_day"]))
+    return g
+
+
+def main_zero_bucket(sr_path: Path = SR_PATH, obs_path: Path = OBS_PATH) -> str:
+    sr = pl.read_parquet(sr_path)
+    obs = pl.read_parquet(obs_path)
+    return "## D-4 0% バケットの経験晴天率 (山頂雲量が T-1h,T とも 0% のとき実況が晴れだった割合)" + chr(10) + fmt(zero_bucket_sunny_rate(sr, obs))
 
 
 if __name__ == "__main__":
