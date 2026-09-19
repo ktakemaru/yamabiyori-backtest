@@ -1,0 +1,362 @@
+{
+ "built": "2026-09-19",
+ "source": "yamabiyori-backtest: Single Runs 00Z 2026-06-12..09-17 (warm season only), cloud_cover_at_summit (T-1h/T mean), foot AMeDAS sunshine (sun1h>=0.4h) at 白馬/野辺山/奥日光/鷲倉, daytime 07-17 JST; validated summits 1700-2899m",
+ "bin_edges": [
+  0,
+  10,
+  20,
+  30,
+  40,
+  50,
+  70,
+  100
+ ],
+ "bin_labels": [
+  "0",
+  "(0,10]",
+  "(10,20]",
+  "(20,30]",
+  "(30,40]",
+  "(40,50]",
+  "(50,70]",
+  "(70,100]"
+ ],
+ "min_n": 30,
+ "note": "p_sunny_used = p_sunny after n-weighted PAV (monotone non-increasing in cloud). Apply per hour, before any window averaging.",
+ "table": {
+  "ecmwf_ifs025": [
+   {
+    "lead_days": [
+     1,
+     2
+    ],
+    "n": 6324,
+    "p_sunny_all": 0.38,
+    "bins": [
+     {
+      "bin": "0",
+      "n": 1227,
+      "p_sunny": 0.737,
+      "thin": false,
+      "p_sunny_used": 0.737
+     },
+     {
+      "bin": "(0,10]",
+      "n": 1929,
+      "p_sunny": 0.492,
+      "thin": false,
+      "p_sunny_used": 0.492
+     },
+     {
+      "bin": "(10,20]",
+      "n": 1062,
+      "p_sunny": 0.271,
+      "thin": false,
+      "p_sunny_used": 0.271
+     },
+     {
+      "bin": "(20,30]",
+      "n": 866,
+      "p_sunny": 0.206,
+      "thin": false,
+      "p_sunny_used": 0.206
+     },
+     {
+      "bin": "(30,40]",
+      "n": 490,
+      "p_sunny": 0.12,
+      "thin": false,
+      "p_sunny_used": 0.12
+     },
+     {
+      "bin": "(40,50]",
+      "n": 343,
+      "p_sunny": 0.052,
+      "thin": false,
+      "p_sunny_used": 0.052
+     },
+     {
+      "bin": "(50,70]",
+      "n": 315,
+      "p_sunny": 0.016,
+      "thin": false,
+      "p_sunny_used": 0.016
+     },
+     {
+      "bin": "(70,100]",
+      "n": 92,
+      "p_sunny": 0.0,
+      "thin": false,
+      "p_sunny_used": 0.0
+     }
+    ]
+   },
+   {
+    "lead_days": [
+     3,
+     5
+    ],
+    "n": 9744,
+    "p_sunny_all": 0.382,
+    "bins": [
+     {
+      "bin": "0",
+      "n": 1737,
+      "p_sunny": 0.697,
+      "thin": false,
+      "p_sunny_used": 0.697
+     },
+     {
+      "bin": "(0,10]",
+      "n": 3147,
+      "p_sunny": 0.485,
+      "thin": false,
+      "p_sunny_used": 0.485
+     },
+     {
+      "bin": "(10,20]",
+      "n": 1705,
+      "p_sunny": 0.288,
+      "thin": false,
+      "p_sunny_used": 0.288
+     },
+     {
+      "bin": "(20,30]",
+      "n": 1213,
+      "p_sunny": 0.222,
+      "thin": false,
+      "p_sunny_used": 0.222
+     },
+     {
+      "bin": "(30,40]",
+      "n": 806,
+      "p_sunny": 0.159,
+      "thin": false,
+      "p_sunny_used": 0.159
+     },
+     {
+      "bin": "(40,50]",
+      "n": 541,
+      "p_sunny": 0.115,
+      "thin": false,
+      "p_sunny_used": 0.115
+     },
+     {
+      "bin": "(50,70]",
+      "n": 478,
+      "p_sunny": 0.065,
+      "thin": false,
+      "p_sunny_used": 0.069
+     },
+     {
+      "bin": "(70,100]",
+      "n": 117,
+      "p_sunny": 0.085,
+      "thin": false,
+      "p_sunny_used": 0.069
+     }
+    ]
+   },
+   {
+    "lead_days": [
+     6,
+     10
+    ],
+    "n": 15580,
+    "p_sunny_all": 0.374,
+    "bins": [
+     {
+      "bin": "0",
+      "n": 2970,
+      "p_sunny": 0.505,
+      "thin": false,
+      "p_sunny_used": 0.505
+     },
+     {
+      "bin": "(0,10]",
+      "n": 5162,
+      "p_sunny": 0.415,
+      "thin": false,
+      "p_sunny_used": 0.415
+     },
+     {
+      "bin": "(10,20]",
+      "n": 2500,
+      "p_sunny": 0.3,
+      "thin": false,
+      "p_sunny_used": 0.312
+     },
+     {
+      "bin": "(20,30]",
+      "n": 1882,
+      "p_sunny": 0.325,
+      "thin": false,
+      "p_sunny_used": 0.312
+     },
+     {
+      "bin": "(30,40]",
+      "n": 1389,
+      "p_sunny": 0.315,
+      "thin": false,
+      "p_sunny_used": 0.312
+     },
+     {
+      "bin": "(40,50]",
+      "n": 844,
+      "p_sunny": 0.257,
+      "thin": false,
+      "p_sunny_used": 0.257
+     },
+     {
+      "bin": "(50,70]",
+      "n": 663,
+      "p_sunny": 0.232,
+      "thin": false,
+      "p_sunny_used": 0.232
+     },
+     {
+      "bin": "(70,100]",
+      "n": 170,
+      "p_sunny": 0.129,
+      "thin": false,
+      "p_sunny_used": 0.129
+     }
+    ]
+   }
+  ],
+  "jma_msm": [
+   {
+    "lead_days": [
+     1,
+     2
+    ],
+    "n": 6324,
+    "p_sunny_all": 0.38,
+    "bins": [
+     {
+      "bin": "0",
+      "n": 1167,
+      "p_sunny": 0.719,
+      "thin": false,
+      "p_sunny_used": 0.719
+     },
+     {
+      "bin": "(0,10]",
+      "n": 1476,
+      "p_sunny": 0.511,
+      "thin": false,
+      "p_sunny_used": 0.511
+     },
+     {
+      "bin": "(10,20]",
+      "n": 1192,
+      "p_sunny": 0.362,
+      "thin": false,
+      "p_sunny_used": 0.362
+     },
+     {
+      "bin": "(20,30]",
+      "n": 762,
+      "p_sunny": 0.247,
+      "thin": false,
+      "p_sunny_used": 0.247
+     },
+     {
+      "bin": "(30,40]",
+      "n": 578,
+      "p_sunny": 0.149,
+      "thin": false,
+      "p_sunny_used": 0.149
+     },
+     {
+      "bin": "(40,50]",
+      "n": 440,
+      "p_sunny": 0.118,
+      "thin": false,
+      "p_sunny_used": 0.118
+     },
+     {
+      "bin": "(50,70]",
+      "n": 468,
+      "p_sunny": 0.073,
+      "thin": false,
+      "p_sunny_used": 0.073
+     },
+     {
+      "bin": "(70,100]",
+      "n": 241,
+      "p_sunny": 0.071,
+      "thin": false,
+      "p_sunny_used": 0.071
+     }
+    ]
+   },
+   {
+    "lead_days": [
+     3,
+     4
+    ],
+    "n": 5943,
+    "p_sunny_all": 0.383,
+    "bins": [
+     {
+      "bin": "0",
+      "n": 1474,
+      "p_sunny": 0.585,
+      "thin": false,
+      "p_sunny_used": 0.585
+     },
+     {
+      "bin": "(0,10]",
+      "n": 1377,
+      "p_sunny": 0.454,
+      "thin": false,
+      "p_sunny_used": 0.454
+     },
+     {
+      "bin": "(10,20]",
+      "n": 1073,
+      "p_sunny": 0.377,
+      "thin": false,
+      "p_sunny_used": 0.377
+     },
+     {
+      "bin": "(20,30]",
+      "n": 645,
+      "p_sunny": 0.264,
+      "thin": false,
+      "p_sunny_used": 0.264
+     },
+     {
+      "bin": "(30,40]",
+      "n": 470,
+      "p_sunny": 0.238,
+      "thin": false,
+      "p_sunny_used": 0.238
+     },
+     {
+      "bin": "(40,50]",
+      "n": 355,
+      "p_sunny": 0.146,
+      "thin": false,
+      "p_sunny_used": 0.146
+     },
+     {
+      "bin": "(50,70]",
+      "n": 373,
+      "p_sunny": 0.123,
+      "thin": false,
+      "p_sunny_used": 0.123
+     },
+     {
+      "bin": "(70,100]",
+      "n": 176,
+      "p_sunny": 0.04,
+      "thin": false,
+      "p_sunny_used": 0.04
+     }
+    ]
+   }
+  ]
+ }
+}
