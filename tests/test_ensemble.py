@@ -99,11 +99,18 @@ def test_plugin_confidence_reproduces_snapshot_without_touching_plugin_dir(tmp_p
     assert hpa == fx["pressure_level_hpa"]
     out = detail.compute_ensemble_confidence_by_day(mtn["lat"], mtn["lon"], fx["cloud_var"], fx["temp_var"], fx["daily_sunrise"])
     assert store["request"]["hourly"] == fx["ensemble_request"]["hourly"] and store["request"]["timezone"] == "Asia/Tokyo"
-    # 同じ入力 → 同じ出力 (cutoff は date.today() 依存なので、記録時点以降の日だけ比べる)
+    # 同じ入力 → 同じ出力 (cutoff は date.today() 依存なので、記録時点以降の日だけ比べる)。
+    # フィクスチャは本体 a65656e (R8 前, ENSEMBLE_PRECIP_WET_THRESHOLD_MM=0.1) で記録した。閾値が変わった本体では
+    # precip 系の値だけ変わるので、閾値が一致するときは全項目、違うときは閾値に依存しない項目だけを比べる。
     common = [d for d in fx["confidence_by_day"] if d in out]
     assert common, "no overlapping days (fixture too old for CONFIDENCE_MIN_DAYS_OUT cutoff?)"
+    same_threshold = detail.ENSEMBLE_PRECIP_WET_THRESHOLD_MM == fx["plugin_constants"]["ENSEMBLE_PRECIP_WET_THRESHOLD_MM"]
+    keys = None if same_threshold else ["cloud_confidence", "temp_confidence", "cloud_pct", "precip_mm"]
     for d in common:
-        assert out[d] == fx["confidence_by_day"][d]
+        if keys is None:
+            assert out[d] == fx["confidence_by_day"][d]
+        else:
+            assert {k: out[d][k] for k in keys} == {k: fx["confidence_by_day"][d][k] for k in keys}
     # 本体ディレクトリに何も書いていない
     after_pyc = set((PLUGIN_DIR / "__pycache__").glob("*")) if (PLUGIN_DIR / "__pycache__").exists() else set()
     after_cache = set((PLUGIN_DIR / "cache").glob("ensemble_*")) if (PLUGIN_DIR / "cache").exists() else set()

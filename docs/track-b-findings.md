@@ -407,3 +407,12 @@ Track A (Previous Runs の毎時 precipitation, 通年) × アメダス 1 時間
 - PSS 最大は ECMWF 0.2mm/h (0.52)、MSM 0.1mm/h (0.47)。bias≈1 は ECMWF 0.7、MSM 1.0。
 - 制約: 実況の分解能 0.5mm のため、予報 0.1〜0.4 の帯が「無降水」か「微量」かは区別できない。
 
+## 11. 本体への反映 (2026-09-19) と代表性誤差の但し書き
+
+- R8: v1.4.0 (`WET_HOUR_MSM_PRECIP_MM` 0.5, `ENSEMBLE_PRECIP_WET_THRESHOLD_MM` 0.2)。参照 3 日不変、探索キャッシュで 30 山日が上昇
+  (`docs/r8-plugin-effect-2026-09-18-cache.txt`)。
+- R1: v1.5.0 (`core.CLOUD_CALIBRATION_TABLE`, 案 C)。**このテーブルの絶対水準は麓実況由来で、山頂実況 (富士山 P(晴れ|0%)=0.86) とは乖離がある。
+  C で正規化しているのはこのため** — 0% ビンに残る 26〜28% は予報誤差と代表性誤差 (山頂晴れ・麓谷雲) の混合で、切り分けられない。
+  山頂実況の標本が増えたら `docs/cloud-calibration-table.txt` の A/B/C 表から再検討する。
+  探索キャッシュでの前後比較は `docs/r1-plugin-effect-2026-09-18-cache.txt` (0 点をまたいだ山日: 0 件)。
+

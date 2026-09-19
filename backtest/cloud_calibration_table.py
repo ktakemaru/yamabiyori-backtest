@@ -62,6 +62,29 @@ def build(sr: pl.DataFrame, obs: pl.DataFrame) -> tuple[dict, pl.DataFrame]:
     return table, pl.DataFrame(rows)
 
 
+def effective_tables(table: dict) -> str:
+    """実効雲量 (本体がスコアに使う値) の 3 案を並べる。本体は案 C (2026-09-19 決定):
+      A: 100 × (1 − P)                        絶対値。麓実況由来の一定オフセット (0% でも 26〜28%) が入る
+      B: 100 × (1 − P / P(0%, 同じ行))        行ごと正規化。lead 依存が消える
+      C: 100 × (1 − P / P(0%, d1-2, 同モデル)) 同モデル d1-2 の 0% で正規化。lead 依存は残り、一定オフセットだけ抜ける
+    A を採らない理由: テーブルの絶対水準は麓アメダスの日照が実況で、「山頂は晴れ・麓は谷雲」を予報の誤りに数える
+    (代表性誤差)。山頂実況を持つ富士山では P(晴れ|0%)=0.86 で麓 4 地点の 0.64〜0.86 より高く、A は山頂を系統的に過小評価する。
+    B を採らない理由: AUC 0.80 (d1) → 0.61 (d7) の減衰 (本プロジェクトの中心的結論) が製品から消える。"""
+    lines = ["## 実効雲量の 3 案 (bins: " + " / ".join(BIN_LABELS) + ")  ※本体は C を採用 (2026-09-19)"]
+    for model, groups in table.items():
+        p_ref = groups[0]["bins"][0]["p_sunny_used"]
+        for g in groups:
+            ps = [b["p_sunny_used"] for b in g["bins"]]
+            a = [round(100 * (1 - p)) for p in ps]
+            bb = [round(100 * (1 - p / ps[0])) for p in ps]
+            c = [max(0, round(100 * (1 - p / p_ref))) for p in ps]
+            lines.append(f"{model} d{g['lead_days'][0]}-{g['lead_days'][1]}  P={ps}")
+            lines.append(f"    A abs      {a}")
+            lines.append(f"    B row-norm {bb}")
+            lines.append(f"    C d1-2norm {c}   (P_ref={p_ref})")
+    return "\n".join(lines)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-json", type=Path, default=OUT_JSON)
@@ -81,7 +104,7 @@ def main(argv=None):
     args.out_json.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     pl.Config.set_tbl_rows(200); pl.Config.set_tbl_width_chars(200)
     txt = ("## 生値ビン → P(晴れ) テーブル (麓 4 地点プール, 暖候期 2026-06-12〜09-17, 日中, 山頂 1700〜2899m; thin = n<30; 使う値は n 重み付き PAV で単調化, JSON の p_sunny_used)\n"
-           + fmt(rows, 3))
+           + fmt(rows, 3) + "\n\n" + effective_tables(table))
     args.out_txt.write_text(txt, encoding="utf-8")
     print(txt)
 
