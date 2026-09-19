@@ -8,6 +8,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import polars as pl
 import pytest
 
 from backtest import collect_ensemble as ce
@@ -131,3 +132,18 @@ def test_rate_limit_retry_waits_then_succeeds(monkeypatch):
     monkeypatch.setattr(ce.time, "sleep", lambda s: waits.append(s))
     r = ce.get_with_rate_limit_retry(S(), "https://x/", {}, timeout=1)
     assert r.status_code == 200 and waits == [ce.RATE_LIMIT_WAIT_SECONDS] * 2
+
+
+def test_confidence_by_hash_summary_and_crosshash(tmp_path):
+    from backtest import confidence_by_hash as cbh
+    fx = load_fixture("plugin_confidence_karamatsu_2026-09-18T06Z.json.gz")
+    site = {k: fx[k] for k in ("site_id", "mountain", "cloud_var", "temp_var", "daily_sunrise", "confidence_by_day")}
+    for run, h, ver, th in [("2026-09-18T06:00:00+00:00", "a65656e" + "0" * 33, None, 0.1), ("2026-09-19T00:00:00+00:00", "7c9e8f6" + "0" * 33, "1.5.0", 0.2)]:
+        env = {"run_utc": run, "fetched_at": run, "plugin": {"git_hash": h, "git_dirty_tracked": False, "plugin_version": ver},
+               "plugin_constants": {"ENSEMBLE_PRECIP_WET_THRESHOLD_MM": th}, "sites": [site]}
+        ce.save_gz(tmp_path / run[:10] / f"{run[11:13]}Z.json.gz", env)
+    df = cbh.load_rows(tmp_path)
+    s = cbh.summary(df)
+    assert s.height == 2 and set(s["plugin_hash"]) == {"a65656e", "7c9e8f6"} and s.filter(pl.col("plugin_hash") == "7c9e8f6")["plugin_version"][0] == "1.5.0"
+    x = cbh.crosshash(df)
+    assert not x.is_empty() and set(x["plugin_hash"]) == {"a65656e", "7c9e8f6"}   # 同じ (site, day) が 2 hash で並ぶ

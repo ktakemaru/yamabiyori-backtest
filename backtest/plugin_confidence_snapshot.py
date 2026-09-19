@@ -53,8 +53,14 @@ def plugin_identity(plugin_dir: Path) -> dict:
         except (subprocess.SubprocessError, FileNotFoundError):
             return None
     status = git("status", "--porcelain", "--untracked-files=no")
+    version = None
+    try:
+        version = json.loads((plugin_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("version")
+    except (OSError, ValueError):
+        pass
     return {
         "plugin_dir": str(plugin_dir),
+        "plugin_version": version,           # .claude-plugin/plugin.json (v1.4.0 = R8, v1.5.0 = R1; 2026-09-19 追加)
         "git_hash": git("rev-parse", "HEAD"),
         "git_branch": git("rev-parse", "--abbrev-ref", "HEAD"),
         "git_dirty_tracked": (None if status is None else bool(status)),

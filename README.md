@@ -25,7 +25,7 @@
 
 | # | 項目 | 再開の目安 | 揃うべきデータ | 回すもの |
 |---|---|---|---|---|
-| 1 | **確信度スコアの較正** (本体 `compute_ensemble_confidence_by_day` の cloud/precip/temp 確信度と実況の関係; 0〜40pt / 0〜8°C の暫定閾値の再調整) | 蓄積 3〜6 か月 → **2027 年初** | `data/snapshots/ensemble/<日>/00Z_*_members.json.gz` と `data/snapshots/plugin_confidence/<日>/00Z.json.gz` が 90 日分以上 + 同期間のアメダス (`data/obs/amedas/`)、富士山頂は 7〜8 月の日照だけなので夏を 1 回含むと良い | 未作成。`parse_single_runs.py` に倣って members → long Parquet (site, run, valid_time, variable, member, value) を作り、`skill.py` の AUC/Brier で「スプレッド (or wet_fraction) が小さいほど当たるか」を lead 別に。plugin_confidence の出力 (日別 confidence) は本体の git hash 別に集計 |
+| 1 | **確信度スコアの較正** (本体 `compute_ensemble_confidence_by_day` の cloud/precip/temp 確信度と実況の関係; 0〜40pt / 0〜8°C の暫定閾値の再調整) | 蓄積 3〜6 か月 → **2027 年初** | `data/snapshots/ensemble/<日>/00Z_*_members.json.gz` と `data/snapshots/plugin_confidence/<日>/00Z.json.gz` が 90 日分以上 + 同期間のアメダス (`data/obs/amedas/`)、富士山頂は 7〜8 月の日照だけなので夏を 1 回含むと良い | 未作成。`parse_single_runs.py` に倣って members → long Parquet (site, run, valid_time, variable, member, value) を作り、`skill.py` の AUC/Brier で「スプレッド (or wet_fraction) が小さいほど当たるか」を lead 別に。plugin_confidence の出力は **本体の版が混ざる** (v1.3.0 a65656e/d8d44cf → v1.4.0 87c9c3c (R8, 2026-09-19: 確信度の precip 系が変わる) → v1.5.0 7c9e8f6 (R1: 確信度には影響なし)) ので、`python -m backtest.confidence_by_hash summary` で版を確認し、**較正対象は v1.5.0 以降 (7c9e8f6〜) の出力**とする。それ以前の分は `confidence_by_hash recompute --plugin-dir <較正対象の版の checkout>` で保存済み入力から再計算して揃える (スナップショットに入力の生レスポンスが入っている) |
 | 2 | **寒候期の検証** (RH 由来の山頂雲量が冬型の下層雲・筋状雲でも順序性を保つか; R6) | 次の冬 → **2027 年 3 月** | `data/snapshots/forecast/` の 2026-12〜2027-02 (気圧面 7 面付き) + 同期間のアメダス日照 (`data/obs/amedas/`; 富士山頂は冬に日照無し) | `python -m backtest.parse_single_runs` の Forecast スナップショット版が必要 (スナップショットはラン混在なので lead は `fetched_at` 基準の近似; api-findings §10.1) → `trackb_eval.py` の `lead_day_pairs` / `report` を季節フィルタ付きで。Track A 側は `python -m backtest.tracka_eval` をそのまま (Previous Runs を `python -m backtest.fetch_previous_runs --start 2026-10-01 --end 2027-03-31` で追加取得してから) |
 | 3 | **層別雲量 (low/mid/high) の通年評価** (本体の雲海判定・層別表示に精度の裏付けを付ける) | Forecast スナップショット 1 年 → **2027 年 9 月** | `data/snapshots/forecast/` 12 か月 (`cloud_cover_low/mid/high` + 7 面) + アメダス日照 12 か月 | 未作成。#2 のスナップショット→Parquet 変換を流用し、`trackb_eval.discrimination_table` を predictor = cloud_cover_low/mid/high/at_summit で。雲海は「山頂晴れ × 麓曇り」の同時分割表 (麓アメダス日照 + 山頂は富士山頂日照 or ひまわり) |
 | 4 | **夜間検証** (夜明け前の雲海判定・星空; R7) | 未着手・データ源から | ひまわり赤外 (雲頂温度) を実況にする。JMA の ひまわり画像 (`www.jma.go.jp/bosai/himawari/`) は PNG タイルで数値でない → NICT ひまわりアーカイブ (gridded, 要確認) か気象庁の配信を Phase 0 と同じ手順で実測してから | 未作成。まず `probe/` に Phase 0 と同じプローブを書き、api-findings に §12 として事実だけ記録。実況が取れると分かってから収集系統 4 を Phase 2 の型で追加 |
@@ -34,7 +34,7 @@
 その他の小さい待ち:
 - R4 (富士山 RH の乾きバイアス): 富士山の湿度・気圧は毎日貯まっている (`data/obs/amedas/`)。晴天日が 20 日分以上入ったら `trackb_eval.fuji_rh_table` を再実行。
 - lead 14 日 / 12Z ラン: 意図的に未取得 (findings §4.4)。必要なら `python -m backtest.fetch_single_runs --hours 12`。
-- 本体側の変更 (R1, R8) を入れたら、その git hash 以降の `plugin_confidence` スナップショットは別集計になる (hash が envelope に入っている)。
+- 本体側の変更は 2026-09-19 に R8 (v1.4.0, 87c9c3c) と R1 (v1.5.0, 7c9e8f6) を反映済み。`plugin_confidence` スナップショットは hash・version・定数を envelope に持ち、`backtest/confidence_by_hash.py` (summary / crosshash / recompute) で版別に追える。同じ対象日の版差を予報差と分けて見るには recompute (保存済み入力で再計算)。
 
 
 ## セットアップ (Windows, Python 3.13 で確認)
