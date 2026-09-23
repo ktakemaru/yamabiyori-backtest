@@ -225,3 +225,109 @@ def test_transplant_row_is_old_row_times_ratio(ts):
         assert b["p"] == round(b["p_old"] * a7 / a5, 3)
     assert row["normalization"]["p_ref"] == row["bins"][0]["p"]
     assert "移植" in row["training_source"]["note"] and "移植" in row["status"]
+
+
+# ---------------------------------------------------------------- 本体 v1.6.0 (R12: MSM d1-2 行を 7 面で学び直し、P_ref を行ごとに)
+BODY_COMMIT_V160 = "43557eacece2c4b4b70587e52401955808596cbf"      # feature/r12-msm7 (案 A、本体 r12-plugin-integration-plan.md)
+BODY_CORE_BLOB_V160 = "51b38a60da7fa3a5ee93aa272c9e9524207a50a8"   # 43557ea:mountain_weather_core.py
+
+
+@pytest.fixture(scope="module")
+def core160(tmp_path_factory):
+    if not BODY_ROOT.exists() or shutil.which("git") is None:
+        pytest.skip("本体リポジトリまたは git が無い")
+    if _git("cat-file", "-e", f"{BODY_COMMIT_V160}^{{commit}}").returncode != 0:
+        pytest.skip(f"本体にコミット {BODY_COMMIT_V160[:7]} が無い")
+    blob = _git("rev-parse", f"{BODY_COMMIT_V160}:mountain_weather_core.py").stdout.decode().strip()
+    assert blob == BODY_CORE_BLOB_V160
+    src = _git("show", f"{BODY_COMMIT_V160}:mountain_weather_core.py")
+    path = tmp_path_factory.mktemp("body_v160") / "mountain_weather_core_v160.py"
+    path.write_bytes(src.stdout)
+    name = "mountain_weather_core_v160"
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    old = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    sys.modules[name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.dont_write_bytecode = old
+    yield mod
+    sys.modules.pop(name, None)
+
+
+@pytest.fixture(scope="module")
+def ts_msm7():
+    return mos.parse_table_set(json.loads(NEW_TABLE_PATH.read_text(encoding="utf-8")))
+
+
+@pytest.mark.parametrize("model", ["ecmwf_ifs025", "jma_msm", "gfs_seamless"])
+def test_v160_single_value(core, core160, ts_msm7, model):
+    """MSM の lead_day 1-2 は新表 (mos) と一致、それ以外はすべて v1.5.0 と一致 (型も)。"""
+    changed = same = 0
+    for lead_day in range(1, 17):
+        for v in VALUES:
+            ours = core160.calibrated_cloud_pct(v, model, lead_day)
+            if model == "jma_msm" and lead_day <= 2:
+                expect = mos.calibrate(ts_msm7, v, model=model, lead_hours=24 * (lead_day - 1), hour_jst=12, month=7, **KW).value
+                changed += 1
+            else:
+                expect = core.calibrated_cloud_pct(v, model, lead_day)
+                same += 1
+            assert ours == expect and type(ours) is type(expect), (model, lead_day, v, ours, expect)
+            # 新表 (mos) とは全範囲で一致
+            m = mos.calibrate(ts_msm7, v, model=model, lead_hours=24 * (lead_day - 1), hour_jst=22, month=11, on_mismatch="allow", **KW).value
+            assert ours == m and type(ours) is type(m)
+    assert same + changed == 16 * len(VALUES)
+
+
+def test_v160_table_rows(core, core160):
+    """表: MSM d1-2 行だけが新表の値、他の行と各行の P_ref は v1.5.0 の値。"""
+    old_rows = {(r[0], r[1]): r for r in core.CLOUD_CALIBRATION_TABLE}
+    for r in core160.CLOUD_CALIBRATION_TABLE:
+        o = old_rows[(r[0], r[1])]
+        assert r[:3] == o[:3]
+        if (r[0], r[1]) == ("jma_msm", 1):
+            assert r[3] == [0.822, 0.687, 0.517, 0.342, 0.260, 0.142, 0.062, 0.041] and r[4] == 0.822
+        else:
+            assert r[3] == o[3] and r[4] == core.CLOUD_CALIBRATION_P_REF[r[0]]
+    assert not hasattr(core160, "CLOUD_CALIBRATION_P_REF")
+
+
+@pytest.mark.parametrize("model, msm_hours, min_compared", [("ecmwf_ifs025", 0, 1000), ("ecmwf_ifs025", 78, 1000), ("jma_msm", 96, 300)])
+def test_v160_series_on_fixtures(core, core160, ts_msm7, model, msm_hours, min_compared):
+    compared = 0
+    for site in config.SITES:
+        hourly = fixture_hourly(model, site, msm_hours)
+        new = core160.calibrated_summit_cloud_series(hourly, site["elevation_m"])
+        assert new == body_glue(ts_msm7, core160, hourly, site["elevation_m"])
+        old = core.calibrated_summit_cloud_series(hourly, site["elevation_m"])
+        today = date.fromisoformat(hourly["time"][0][:10])
+        for i, t in enumerate(hourly["time"]):
+            lead_day = max(1, (date.fromisoformat(t[:10]) - today).days + 1)
+            is_msm = hourly["precipitation_msm"][i] is not None
+            if not (is_msm and lead_day <= 2):
+                assert new[i] == old[i] or (new[i] != new[i] and old[i] != old[i]), (site["site_id"], t)
+        compared += sum(1 for x in new if x is not None)
+    assert compared > min_compared
+
+
+def test_v160_series_synthetic(core, core160, ts_msm7):
+    start = datetime(2026, 9, 28, 0, 0)
+    times = [(start + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M") for i in range(24 * 12)]
+    raw = [None if i % 37 == 5 else VALUES[1 + i % (len(VALUES) - 2)] for i in range(len(times))]
+    msm = [0.0 if i < 90 else None for i in range(len(times))]
+    hourly = {"time": times, "cloudcover_at_summit": raw, "precipitation_msm": msm}
+    for summit_m in (1700.0, 3180.0, 3776.0):
+        for today in (None, date(2026, 9, 26), date(2026, 10, 2)):
+            new = core160.calibrated_summit_cloud_series(hourly, summit_m, today=today)
+            glued = body_glue(ts_msm7, core160, hourly, summit_m, today=today)
+            old = core.calibrated_summit_cloud_series(hourly, summit_m, today=today)
+            t0 = today or date.fromisoformat(times[0][:10])
+            for i, t in enumerate(times):
+                a, b, c = new[i], glued[i], old[i]
+                assert a == b or (a is not None and b is not None and math.isnan(a) and math.isnan(b))
+                lead_day = max(1, (date.fromisoformat(t[:10]) - t0).days + 1)
+                if not (msm[i] is not None and lead_day <= 2):
+                    assert a == c or (a is not None and c is not None and math.isnan(a) and math.isnan(c))

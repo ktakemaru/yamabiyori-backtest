@@ -9,6 +9,10 @@
 旧表では、この列が本体の calibrated_summit_cloud_series と完全に一致することを毎回確かめる。
 
     python -m backtest.r12_score_effect [--cache C:/mountain-weather-r8/cache_prev] [--out docs/r12-score-effect.txt]
+    python -m backtest.r12_score_effect --body-commit <v1.6.0 の hash> [--out docs/r12-plugin-effect-2026-09-18-cache.txt]
+
+--body-commit: 表の差し替えではなく、v1.5.0 (52d3d2a) と指定コミットの本体コードそのもので日スコアを計算し、
+山日ごとに「v1.5.0 = 旧表の計算」「指定コミット = 新表 (msm7) の計算」が完全に一致することを確かめてから、前後の変化を出す。
 """
 import argparse
 import importlib
@@ -43,14 +47,14 @@ KW = {"predictor": "cloud_cover_at_summit", "target": "p_sunny"}
 BANDS = [("<1500", 0, 1499), ("1500-2999 (R12 大)", 1500, 2999), (">=3000", 3000, 9999)]
 
 
-def load_body(tmp: Path):
-    """52d3d2a の本体モジュールを tmp に取り出して import (sys.dont_write_bytecode)。"""
+def load_body(tmp: Path, commit: str = BODY_COMMIT):
+    """本体モジュールを tmp に取り出して import (sys.dont_write_bytecode)。既に import 済みの本体モジュールは外してから読む。"""
     def git(*a):
         return subprocess.run(["git", "--no-optional-locks", "-C", str(BODY_ROOT), *a], capture_output=True, check=True).stdout
     for f, blob in BODY_FILES.items():
-        if blob:
-            assert git("rev-parse", f"{BODY_COMMIT}:{f}").decode().strip() == blob, f
-        (tmp / f).write_bytes(git("show", f"{BODY_COMMIT}:{f}"))
+        if blob and commit == BODY_COMMIT:
+            assert git("rev-parse", f"{commit}:{f}").decode().strip() == blob, f
+        (tmp / f).write_bytes(git("show", f"{commit}:{f}"))
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(tmp))
     for name in ("mountain_weather_core", "mountain_terrain", "mountain_weather_detail"):
@@ -124,6 +128,83 @@ def scores(core, detail, tsets: dict, msm: dict, ec: dict, elevation_m: float, t
     return out
 
 
+def body_native_scores(commit: str, cache: Path) -> tuple[dict, dict]:
+    """指定コミットの本体コードそのもので (較正列も本体の calibrated_summit_cloud_series)、山日スコアと参照日スコアを計算する。"""
+    tmp = Path(tempfile.mkdtemp(prefix=f"body_{commit[:7]}_"))
+    try:
+        core, detail = load_body(tmp, commit)
+        days, refs = {}, {}
+        for mtn in core.MOUNTAINS:
+            key = f"{mtn['lat']:.4f}_{mtn['lon']:.4f}_15d.json"
+            try:
+                msm, ec = read_json(cache / f"jma_msm_{key}"), read_json(cache / f"ecmwf_ifs025_{key}")
+            except FileNotFoundError:
+                continue
+            hourly, sun, summit_m, wind_var, temp_var = build_hourly(core, detail, msm, ec, mtn["elevation_m"])
+            hourly[core.SUMMIT_CLOUD_CAL_VAR] = core.calibrated_summit_cloud_series(hourly, summit_m)
+            for day, r in detail.compute_day_scores({"hourly": hourly, **sun}, wind_var, summit_m, temp_var).items():
+                days[(mtn["name"], day)] = r["score"]
+        for name, day in REFS:
+            mtn = next(x for x in core.MOUNTAINS if x["name"] == name)
+            key = f"{mtn['lat']:.4f}_{mtn['lon']:.4f}_1d_past5d.json"
+            msm, ec = read_json(REF_CACHE / f"jma_msm_{key}"), read_json(REF_CACHE / f"ecmwf_ifs025_{key}")
+            hourly, sun, summit_m, wind_var, temp_var = build_hourly(core, detail, msm, ec, mtn["elevation_m"])
+            hourly[core.SUMMIT_CLOUD_CAL_VAR] = core.calibrated_summit_cloud_series(hourly, summit_m, today=date.fromisoformat(day))
+            refs[f"{name} {day}"] = detail.compute_day_scores({"hourly": hourly, **sun}, wind_var, summit_m, temp_var)[day]["score"]
+        return days, refs
+    finally:
+        sys.path.remove(str(tmp))
+        for name in ("mountain_weather_core", "mountain_terrain", "mountain_weather_detail"):
+            sys.modules.pop(name, None)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+DELTA_BUCKETS = ["<-20", "-20..-10", "-10..-5", "-5..0", "0", "0..+5", "+5..+10", ">+10"]
+
+
+def bucket(d: float) -> str:
+    """R1 の記録 (r1-plugin-effect-2026-09-18-cache.txt) と同じ区分。0 は変化なし。"""
+    if d == 0:
+        return "0"
+    return ("<-20" if d < -20 else "-20..-10" if d < -10 else "-10..-5" if d < -5 else "-5..0" if d < 0 else
+            "0..+5" if d <= 5 else "+5..+10" if d <= 10 else ">+10")
+
+
+def spearman(a: list, b: list) -> float:
+    """順位相関 (同順位は平均順位)。"""
+    def ranks(x):
+        order = sorted(range(len(x)), key=lambda i: x[i])
+        r = [0.0] * len(x)
+        i = 0
+        while i < len(order):
+            j = i
+            while j + 1 < len(order) and x[order[j + 1]] == x[order[i]]:
+                j += 1
+            for k in range(i, j + 1):
+                r[order[k]] = (i + j) / 2 + 1
+            i = j + 1
+        return r
+    ra, rb = ranks(a), ranks(b)
+    ma, mb = sum(ra) / len(ra), sum(rb) / len(rb)
+    cov = sum((x - ma) * (y - mb) for x, y in zip(ra, rb))
+    va = sum((x - ma) ** 2 for x in ra) ** 0.5
+    vb = sum((y - mb) ** 2 for y in rb) ** 0.5
+    return cov / (va * vb) if va and vb else 1.0
+
+
+def ranking_table(d: pl.DataFrame, a: str, b: str, top_n: int = 10) -> pl.DataFrame:
+    """日ごと: 上位 top_n 座の入れ替わり数、全山の順位の Spearman 相関 (前後)、平均スコアの前後差。"""
+    rows = []
+    for (day,), g in d.group_by("day", maintain_order=True):
+        g = g.sort("name")
+        before = g.sort(b, descending=True)["name"].to_list()[:top_n]
+        after = g.sort(a, descending=True)["name"].to_list()[:top_n]
+        rows.append({"day": day, "lead": g["lead"][0], "n": g.height, f"top{top_n}_replaced": len(set(before) - set(after)),
+                     "spearman": spearman(g[b].to_list(), g[a].to_list()), "mean_before": g[b].mean(), "mean_after": g[a].mean(),
+                     "mean_diff": g[a].mean() - g[b].mean()})
+    return pl.DataFrame(rows).sort("day")
+
+
 def band_of(elev: int) -> str:
     return next(n for n, lo, hi in BANDS if lo <= elev <= hi)
 
@@ -149,7 +230,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--cache", type=Path, default=DEFAULT_CACHE)
     ap.add_argument("--out", type=Path, default=OUT)
+    ap.add_argument("--body-commit", help="v1.6.0 など、v1.5.0 と比べる本体のコミット")
     args = ap.parse_args(argv)
+    if args.body_commit:
+        return main_body_commit(args)
     pl.Config.set_tbl_width_chars(260)
     tsets = {k: mos.parse_table_set(read_json(p)) for k, p in TABLES.items()}
     tmp = Path(tempfile.mkdtemp(prefix="body_v150_"))
@@ -206,6 +290,72 @@ def main(argv=None) -> int:
     args.out.write_text(txt, encoding="utf-8")
     print(txt)
     return 0
+
+
+def main_body_commit(args) -> int:
+    """v1.5.0 と指定コミットの本体コードそのもので前後比較する。表の差し替え (mos) での計算と山日ごとに完全一致することを先に確かめる。"""
+    pl.Config.set_tbl_width_chars(260)
+    tsets = {k: mos.parse_table_set(read_json(TABLES[k])) for k in ("old", "new")}
+    old_days, old_refs = body_native_scores(BODY_COMMIT, args.cache)
+    new_days, new_refs = body_native_scores(args.body_commit, args.cache)
+    # 表の差し替え (mos) での計算
+    tmp = Path(tempfile.mkdtemp(prefix="body_v150_glue_"))
+    glue_old, glue_new, meta = {}, {}, {}
+    try:
+        core, detail = load_body(tmp)
+        for mtn in core.MOUNTAINS:
+            key = f"{mtn['lat']:.4f}_{mtn['lon']:.4f}_15d.json"
+            try:
+                msm, ec = read_json(args.cache / f"jma_msm_{key}"), read_json(args.cache / f"ecmwf_ifs025_{key}")
+            except FileNotFoundError:
+                continue
+            s = scores(core, detail, tsets, msm, ec, mtn["elevation_m"])
+            first = date.fromisoformat(msm["hourly"]["time"][0][:10])
+            for day in s["old"]:
+                glue_old[(mtn["name"], day)] = s["old"][day]["score"]
+                glue_new[(mtn["name"], day)] = s["new"][day]["score"]
+                meta[(mtn["name"], day)] = (mtn["elevation_m"], (date.fromisoformat(day) - first).days + 1)
+    finally:
+        sys.path.remove(str(tmp))
+        for name in ("mountain_weather_core", "mountain_terrain", "mountain_weather_detail"):
+            sys.modules.pop(name, None)
+        shutil.rmtree(tmp, ignore_errors=True)
+    keys = sorted(old_days)
+    assert keys == sorted(new_days) == sorted(glue_old)
+    mism_old = [k for k in keys if old_days[k] != glue_old[k]]
+    mism_new = [k for k in keys if new_days[k] != glue_new[k]]
+    rows = []
+    for k in keys:
+        if old_days[k] is None:
+            continue
+        elev, lead_day = meta[k]
+        rows.append({"name": k[0], "day": k[1], "elevation_m": elev, "band": band_of(elev),
+                     "lead": "d1-2" if lead_day <= 2 else "d3+", "old": old_days[k], "new": new_days[k]})
+    d = pl.DataFrame(rows)
+    buckets = (d.filter(~(((pl.col("old") == 0) & (pl.col("new") > 0)) | ((pl.col("old") > 0) & (pl.col("new") == 0))))
+               .with_columns((pl.col("new") - pl.col("old")).map_elements(bucket, return_dtype=pl.String).alias("bucket"))
+               .group_by("lead", "bucket").agg(pl.len().alias("n")).sort("lead", "bucket"))
+    expected_refs = {"唐松岳 2026-09-06": 55.0, "立山(雄山) 2026-09-05": 95.6, "槍ヶ岳 2026-09-05": 67.8}
+    ref_rows = [{"ref": r, "v1.5.0": old_refs[r], "body_commit": new_refs[r], "expected": expected_refs[r],
+                 "match": new_refs[r] == expected_refs[r]} for r in expected_refs]
+    parts = [f"## 本体 {args.body_commit[:7]} と v1.5.0 (52d3d2a) の前後比較 (本体のコードそのもので計算)",
+             f"探索キャッシュ: {args.cache} (2026-09-18 20 時取得、76 座 × 15 日、読むだけ)。山日 {d.height}。",
+             "確認 1: v1.5.0 のスコア == 旧表 (mos, r1-summit-cloud-sunny) で差し替えた計算、山日ごとに完全一致: "
+             + ("OK (不一致 0)" if not mism_old else f"NG 不一致 {len(mism_old)}: {mism_old[:5]}"),
+             f"確認 2: {args.body_commit[:7]} のスコア == 新表 (mos, r1-summit-cloud-sunny-msm7) で差し替えた計算、山日ごとに完全一致: "
+             + ("OK (不一致 0)" if not mism_new else f"NG 不一致 {len(mism_new)}: {mism_new[:5]}"),
+             "→ 両方 OK なら、下の変化は r12-score-effect.txt の「新表 − 今の本体」と山日ごとに同じ。", "",
+             "### 変化量 (本体の新コミット − v1.5.0)、0 点をまたぐ変化は別枠", fmt(summarize(d, "new", "old", ["lead"]), 2),
+             "標高帯別", fmt(summarize(d, "new", "old", ["lead", "band"]), 2),
+             "### 変化量の区分 (R1 の記録と同じ区分、0 点をまたぐ変化を除く)", fmt(buckets, 0),
+             "### 参照日", fmt(pl.DataFrame(ref_rows), 1),
+             "### 探索モードの順位 (日ごと: 上位 10 座の入れ替わり、全 76 座の順位の Spearman 相関、平均スコアの前後差)",
+             "1〜2 日目だけが動くので、1〜2 日目の平均スコアが 3 日目以降と比べて一律に上下していないかを mean_diff で見る。",
+             fmt(ranking_table(d, "new", "old"), 3)]
+    txt = "\n".join(parts) + "\n"
+    args.out.write_text(txt, encoding="utf-8")
+    print(txt)
+    return 0 if not mism_old and not mism_new and all(r["match"] for r in ref_rows) else 1
 
 
 if __name__ == "__main__":
