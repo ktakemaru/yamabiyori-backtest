@@ -158,6 +158,38 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
   leave-one-site-out で Brier / 信頼度図により評価 → `docs/quantile-map-tables.txt` (findings §9)。暖候期のみ・本体には入れない。
 - 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)、本体への推奨は [docs/product-recommendations.md](docs/product-recommendations.md)。
 
+## MOS モジュール (`mos/`)
+
+補正ロジックを山固有の処理から切り離した、移植用のモジュール。設計は [docs/mos-module-design.md](docs/mos-module-design.md)。
+最初の題材は R1 (山頂雲量 → P(晴れ) → 本体 v1.5.0 の実効雲量, 案C)。
+
+- `mos/`: 補正の純粋関数 (`parse_table_set` / `select_table` / `calibrate` など)。I/O なし。現在 `mos.MOS_VERSION = "0.1.0"`。
+- `mos_tables/r1-summit-cloud-sunny.json`: R1 の表 (新形式, schema v1)。`python -m backtest.mos_export` で parquet から作り直す
+  (既存の `docs/cloud-calibration-table.json` と数値が一致しなければ止まる)。
+- `tests/test_mos.py` (単体)、`tests/test_mos_equivalence.py` (本体 v1.5.0 = `52d3d2a` を `git show` で一時フォルダに取り出して、同一入力で同一出力になることを確認。本体・当該コミットが無ければ skip)。
+
+```python
+import json, mos
+ts = mos.parse_table_set(json.load(open("mos_tables/r1-summit-cloud-sunny.json", encoding="utf-8")))
+r = mos.calibrate(ts, 12.0, predictor="cloud_cover_at_summit", target="p_sunny", model="ecmwf_ifs025",
+                  lead_hours=30, hour_jst=10, month=8)          # lead_hours = ラン初期時刻からの経過時間
+r.value, r.applied, r.in_scope, r.table_id                      # (63.2, True, True, 'ecmwf_ifs025/h0-48')
+```
+
+**移植時の注意**
+
+- **標準ライブラリのみ**。`mos/` に polars / numpy / requests を持ち込まない (テストが import を検査する)。Python 3.8 の構文に収める
+  (match 文などを使わない。テストが `ast.parse(feature_version=(3, 8))` で検査)。
+- **版の検査**: `mos/` はディレクトリごとコピーし、表は `json.load` → `mos.parse_table_set()` で読む。スキーマ名・`schema_version`・
+  `min_mos_version`・`content_sha256` のどれかが合わなければ `SchemaError` で止まる (手編集や別の版とのコピー取り違えを検出)。
+  移植先には `mos.MOS_VERSION` と表の `table_set_version`・`content_sha256` を期待値と比べるテストを 1 本置き、コピー元のコミットを記録する。
+- **現在の表は日中・暖候期だけ** (JST 07〜17 時に終わる 1 時間、valid_time が 6〜9 月)。範囲外で引くと既定では `ContextMismatchError`。
+  `on_mismatch="passthrough"` (生値を返す) / `"allow"` (範囲外でも使い `in_scope=False`) は呼び出し箇所で意図して指定する。
+  説明変数・目的変数が違う表 (例: 全層雲量 `cloud_cover` に R1 表) はどの指定でもエラー。
+- **lead はラン初期時刻からの経過時間 (時間)**。本体 v1.5.0 は取得日基準の暦日差で数えていて学習と違う (product-recommendations R11)。
+- 検証済み標高は表の `validated_elevation` を見る。R1 は 2578〜2899m が confirmed、1700m (安達太良山・鷲倉, 8 日分) は provisional。
+- hoshibiyori へのコピーは未承認 (夜間・全層雲量の表ができた時点で改めて判断)。
+
 ## テスト
 
 ```powershell
