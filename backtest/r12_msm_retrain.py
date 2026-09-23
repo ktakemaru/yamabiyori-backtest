@@ -17,6 +17,11 @@ T_H5 / T_H7 の評価は地点を 1 つずつ外す (leave-one-site-out)。組�
     python -m backtest.r12_msm_retrain usage      # 本体で MSM の d3-4 行が引かれる時間数 (Forecast スナップショットから)
     python -m backtest.r12_msm_retrain eval       # → docs/r12-msm-retrain-tables.txt
     python -m backtest.r12_msm_retrain export     # → mos_tables/r1-summit-cloud-sunny-msm7.json (既存の表は変更しない)
+    python -m backtest.r12_msm_retrain transplant          # 移植表の評価 → docs/r12-msm-transplant-tables.txt
+    python -m backtest.r12_msm_retrain export-transplant   # → mos_tables/r1-summit-cloud-sunny-msm7-transplant.json
+
+移植表 (T): 旧表の MSM d1-2 行 (Single Runs の本物の lead 0-48h の絶対水準) に、「Historical 7 面表 ÷ Historical 5 面表」のビンごとの比を掛けた行。
+面の数の効果だけを移し、データ源 (実質リードの短さ) の水準は持ち込まない狙い。基準値 (0% ビン) も同じ比で移す。
 """
 import argparse
 import copy
@@ -49,6 +54,8 @@ RAW_DIR = config.DATA_DIR / "raw" / "historical_forecast_r12"
 SNAP_DIR = config.DATA_DIR / "snapshots" / "forecast"
 OUT_TXT = REPO / "docs" / "r12-msm-retrain-tables.txt"
 OUT_TABLE = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7.json"
+OUT_TP_TXT = REPO / "docs" / "r12-msm-transplant-tables.txt"
+OUT_TP_TABLE = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7-transplant.json"
 OLD_TABLE = REPO / "mos_tables" / "r1-summit-cloud-sunny.json"
 MODEL = "jma_msm"
 SITE_IDS = ["karamatsu", "akadake", "nikko_shirane", "adatara"]
@@ -213,10 +220,10 @@ def score_table(d: pl.DataFrame) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def contrast_table(d: pl.DataFrame) -> pl.DataFrame:
+def contrast_table(d: pl.DataFrame, contrasts=None) -> pl.DataFrame:
     y = d["y"].to_list()
     rows = []
-    for name, a, b in CONTRASTS:
+    for name, a, b in (contrasts or CONTRASTS):
         bt = boot(d, a, b)
         rows.append({"contrast": name, "d_brier": brier(d[a].to_list(), y) - brier(d[b].to_list(), y),
                      "d_brier_lo": bt["d_brier_ci95"][0], "d_brier_hi": bt["d_brier_ci95"][1], "p_boot_first_better": bt["p_boot_d_brier_lt0"],
@@ -224,12 +231,12 @@ def contrast_table(d: pl.DataFrame) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-def fold_table(d: pl.DataFrame) -> pl.DataFrame:
+def fold_table(d: pl.DataFrame, contrasts=None) -> pl.DataFrame:
     rows = []
     for (s,), g in d.group_by("site_id", maintain_order=True):
         y = g["y"].to_list()
         r = {"held_out_site": s, "n": g.height, "days": g["date_jst"].n_unique()}
-        for name, a, b in CONTRASTS:
+        for name, a, b in (contrasts or CONTRASTS):
             r[name.split(" (")[0] + " ΔBrier"] = brier(g[a].to_list(), y) - brier(g[b].to_list(), y)
         rows.append(r)
     return pl.DataFrame(rows).sort("held_out_site")
@@ -366,9 +373,124 @@ def build_new_table(git: dict, today: date) -> dict:
     return doc
 
 
+# ---------------------------------------------------------------- 移植表 (旧表 + 面の数の効果)
+TP_CONTRASTS = [("移植表 − 今の本体 (T − A)", "T_tp_on7", "A_old_on7"),
+                ("新表 − 今の本体 (B − A)", "B_h7_on7", "A_old_on7"),
+                ("移植表 − 新表 (T − B)", "T_tp_on7", "B_h7_on7")]
+
+
+def transplant(base_p: list, h5: list, h7: list, method: str = "ratio") -> list:
+    """base_p にビンごとの面の数の効果を移す。ratio: base × (h7 / h5)、diff: base + (h7 − h5)。[0, 1] に切り、PAV で単調にする。
+    h5 が 0 のビンは比が定義できないので比 1 (変えない)。"""
+    out = []
+    for b, a5, a7 in zip(base_p, h5, h7):
+        if method == "ratio":
+            v = b * (a7 / a5) if a5 > 0 else b
+        else:
+            v = b + (a7 - a5)
+        out.append(min(1.0, max(0.0, v)))
+    mono = pav_decreasing(out, [1.0] * len(out))
+    return [round(v, 3) for v in mono]
+
+
+def predictions_tp(d: pl.DataFrame, old_p: list, method: str = "ratio") -> pl.DataFrame:
+    """predictions() に移植表 T を足す。比は外した地点を除く 3 地点の Historical 5 面・7 面の表から求める (旧表は固定)。"""
+    pr = predictions(d, old_p)
+    parts = []
+    for s in SITE_IDS:
+        test = pr.filter(pl.col("site_id") == s)
+        if test.is_empty():
+            continue
+        train = d.filter(pl.col("site_id") != s)
+        tp = transplant(old_p, fit_row(train, "b5")["p"], fit_row(train, "b7")["p"], method)
+        parts.append(test.with_columns(pl.col("b7").map_elements(lambda b, t=tp: t[b], return_dtype=pl.Float64).alias("T_tp_on7")))
+    return pl.concat(parts)
+
+
+def evaluate_transplant() -> str:
+    pl.Config.set_tbl_width_chars(260)
+    old = json.loads(OLD_TABLE.read_text(encoding="utf-8"))
+    old_msm = {t["table_id"]: t for t in old["tables"] if t["model"] == MODEL}
+    old_p = [b["p"] for b in old_msm["jma_msm/h0-48"]["bins"]]
+    d34 = [b["p"] for b in old_msm["jma_msm/h48-96"]["bins"]]
+    d = frame()
+    pr = predictions_tp(d, old_p, "ratio")
+    pr_diff = predictions_tp(d, old_p, "diff")
+    full5, full7 = fit_row(d, "b5")["p"], fit_row(d, "b7")["p"]
+    ratio = [round(a7 / a5, 4) if a5 > 0 else 1.0 for a5, a7 in zip(full5, full7)]
+    tp_r, tp_d = transplant(old_p, full5, full7, "ratio"), transplant(old_p, full5, full7, "diff")
+    d34_r = transplant(d34, full5, full7, "ratio")
+    y = pr["y"].to_list()
+    scores = pl.DataFrame([{"variant": v, "brier": brier(pr[v].to_list(), y)} for v in ["A_old_on7", "B_h7_on7", "T_tp_on7", "C_old_on5"]]
+                          + [{"variant": "T_tp_on7 (diff 方式)", "brier": brier(pr_diff["T_tp_on7"].to_list(), pr_diff["y"].to_list())}])
+    ref_old, ref_new, ref_tp = old_p[0], full7[0], tp_r[0]
+    rows = pl.DataFrame({"bin": [str(x) for x in mx.BIN_LABELS], "p_h5": full5, "p_h7": full7, "ratio_h7_h5": ratio,
+                         "p_old": old_p, "p_tp_ratio": tp_r, "p_tp_diff": tp_d, "p_new_h7": full7,
+                         "eff_old": effective(old_p, ref_old), "eff_tp": effective(tp_r, ref_tp), "eff_new": effective(full7, ref_new)})
+    d34rows = pl.DataFrame({"bin": [str(x) for x in mx.BIN_LABELS], "p_d34_old": d34, "p_d34_tp": d34_r,
+                            "eff_d34_v150": effective(d34, ref_old), "eff_d34_tp_ref_tp": effective(d34_r, ref_tp),
+                            "eff_d34_tp_ref_old": effective(d34_r, ref_old)})
+    return ("## R12 移植表の評価: 旧表の MSM d1-2 行 × (Historical 7 面 / Historical 5 面) のビンごとの比\n"
+            f"標本・方法は r12-msm-retrain-tables.txt と同じ ({d.height} 時間、地点を 1 つずつ外す、日単位ブロックのブートストラップ {N_BOOT} 回、seed {SEED})。\n"
+            "移植の比は、外した地点を除く 3 地点の Historical 5 面・7 面の表から毎回求める (旧表は固定)。評価は Historical の予報 = 実質リードの短い予報に対するもの。\n"
+            "A = 旧表 × 7 面の入力 (今の本体)、B = 新表 (Historical 7 面) × 7 面、T = 移植表 × 7 面、C = 旧表 × 5 面 (参考)。\n\n"
+            "### Brier\n" + fmt(scores, 4)
+            + "\n\n### 差 (前 − 後、負 = 前の方が良い)\n" + fmt(contrast_table(pr, TP_CONTRASTS), 4)
+            + "\n\n### 地点を外したときの差 (外した地点での ΔBrier)\n" + fmt(fold_table(pr, TP_CONTRASTS), 4)
+            + "\n\n### 4 地点全部で作った表の値 (移植表として書き出す値) と実効雲量 (案C)\n"
+            + f"基準値: 旧 {ref_old} → 移植 {ref_tp} ({ref_tp - ref_old:+.3f})、新表 {ref_new} ({ref_new - ref_old:+.3f})\n"
+            + "p_tp_diff = 差 (h7 − h5) で移した場合 (参考)。移植表は比で作る。\n"
+            + fmt(rows, 3)
+            + "\n\n### 参考: d3-4 行に同じ比を移した場合 (表は作らない)\n"
+            + "eff_d34_tp_ref_tp = 移植した d3-4 行を移植した基準値で正規化、eff_d34_tp_ref_old = 旧基準値で正規化、eff_d34_v150 = 今の値。\n"
+            + fmt(d34rows, 3) + "\n")
+
+
+def build_transplant_table(git: dict, today: date) -> dict:
+    """msm7 候補表と同じ組み立てで、MSM d1-2 行だけを移植行に差し替える。"""
+    doc = build_new_table(git, today)
+    old = json.loads(OLD_TABLE.read_text(encoding="utf-8"))
+    base = copy.deepcopy(next(t for t in old["tables"] if t["table_id"] == "jma_msm/h0-48"))
+    d = frame()
+    full5, full7 = fit_row(d, "b5"), fit_row(d, "b7")
+    old_p = [b["p"] for b in base["bins"]]
+    tp = transplant(old_p, full5["p"], full7["p"], "ratio")
+    ratio = [round(a7 / a5, 4) if a5 > 0 else 1.0 for a5, a7 in zip(full5["p"], full7["p"])]
+    new_row = next(t for t in doc["tables"] if t["table_id"] == "jma_msm/h0-48")
+    row = base
+    row["predictor_definition"] = new_row["predictor_definition"]          # 入力は 7 面 (本体と同じ)
+    row["bins"] = [{"label": b["label"], "n": b["n"], "p_old": b["p"], "ratio_h7_h5": r, "p": p, "thin": b["thin"]}
+                   for b, r, p in zip(base["bins"], ratio, tp)]
+    row["training_source"] = {
+        "api": "Single Runs API (absolute level: v1.5.0 jma_msm/h0-48, lead-controlled 0-48h) x Historical Forecast API "
+               "(7-level / 5-level ratio per bin)",
+        "levels_hpa": LEVELS_7, "n_levels": 7,
+        "note": "旧表 + 面の数の効果の移植 (old table with the level-count effect transplanted)"}
+    row["normalization"] = {"p_ref": tp[0], "source": "this row bin 0 = v1.5.0 jma_msm/h0-48 bin 0 (0.719) x ratio (Historical 7-level "
+                                                     "/ 5-level bin 0), transplanted the same way as the other bins"}
+    row["transplant"] = {"method": "ratio", "base": "r1-summit-cloud-sunny 1.0.0 jma_msm/h0-48 (Single Runs, 5 levels)",
+                         "ratio_from": "Historical Forecast API jma_msm PAV tables, 7-level / 5-level, 4 foot sites, the R1 training "
+                                       "(site, valid_time) set", "p_h5": full5["p"], "p_h7": full7["p"], "ratio_h7_h5": ratio,
+                         "monotone": "PAV after multiplying (no merges were needed when built)" if tp == [round(min(1, max(0, v)), 3) for v in
+                                     [b * r for b, r in zip(old_p, ratio)]] else "PAV merged some bins"}
+    row["status"] = "旧表 + 面の数の効果の移植 (R12 candidate, transplant). docs/r12-msm-transplant.md"
+    row["provenance"] = doc["provenance"]
+    row["copied_from"] = next(t for t in doc["tables"] if t["table_id"] == "jma_msm/h48-96")["copied_from"]
+    doc["tables"] = [row if t["table_id"] == "jma_msm/h0-48" else t for t in doc["tables"]]
+    doc["table_set_id"] = "r1-summit-cloud-sunny-msm7-transplant"
+    doc["table_set_version"] = "1.1.0"
+    doc["description"] = ("R1 with the jma_msm 0-48h row = v1.5.0 row x (Historical 7-level / 5-level) per-bin ratio: keeps the Single "
+                          "Runs absolute level (true 0-48h leads) and transplants only the 900/800hPa effect (R12 candidate). ECMWF rows "
+                          "and the jma_msm 48-96h row are copied from r1-summit-cloud-sunny 1.0.0 with their original normalization "
+                          "(equal to plugin v1.5.0). Needs mos >= 0.2.0.")
+    doc.pop("content_sha256", None)
+    doc["content_sha256"] = mos.content_sha256(doc)
+    return doc
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["fetch", "usage", "eval", "export"])
+    ap.add_argument("cmd", choices=["fetch", "usage", "eval", "export", "transplant", "export-transplant"])
     ap.add_argument("--out", type=Path)
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
@@ -380,6 +502,16 @@ def main(argv=None) -> int:
         txt = evaluate() + "\n\n" + usage()
         (args.out or OUT_TXT).write_text(txt, encoding="utf-8")
         print(txt)
+    elif args.cmd == "transplant":
+        txt = evaluate_transplant()
+        (args.out or OUT_TP_TXT).write_text(txt, encoding="utf-8")
+        print(txt)
+    elif args.cmd == "export-transplant":
+        doc = build_transplant_table(mx.git_info(), date.today())
+        mos.parse_table_set(json.loads(json.dumps(doc, ensure_ascii=False)))
+        out = args.out or OUT_TP_TABLE
+        out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"wrote {out} sha256={doc['content_sha256']} commit={doc['provenance']['commit']} dirty={doc['provenance']['dirty']}")
     else:
         doc = build_new_table(mx.git_info(), date.today())
         mos.parse_table_set(json.loads(json.dumps(doc, ensure_ascii=False)))
