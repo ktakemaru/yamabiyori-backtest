@@ -269,6 +269,11 @@ lead 区間の重なり、`table_id` の重複、fallback 先の存在、各モ�
 - 実装中に分かったこと: 本体の系列関数は標高ランプの混合 `round(w*cal + (1-w)*raw, 1)` を w=1 でも通すので、raw が NaN だと `0.0*NaN` で NaN になる
   (mos 単体と `calibrated_cloud_pct` は NaN を最終ビンとして 100 を返す)。混合は本体の糊なので `body_glue` 側で同じ式を使って一致させた。
   Open-Meteo の欠損は null (None) で来るので、実運用で NaN が入る経路があるかは未確認。
+  → 2026-09-23 確認 (本体 52d3d2a を `git show` で読んだ): null は `resp.json()` / キャッシュの `json.load` で None になり、MSM/ECMWF の結合
+  (mvp/detail `fetch_forecast`: `if v is None` で補完)、`level_profile` (None の面を除外)、`interp_at_altitude` (全面欠損なら None) を通って
+  None のまま `calibrated_cloud_pct` に届き、None を返す。null から NaN が生じる経路は無い。本体で NaN を作るのは地形タイル
+  (`mountain_terrain.py` の `np.nan`) だけで、雲量の経路とは交わらない。NaN が入りうるのは API 応答自体に `NaN` トークンが入る場合だけで、
+  本体キャッシュ 1,170 件・本リポジトリの生データ/スナップショット 342 件に `NaN`/`Infinity` は 0 件。→ R12 としては記録しない。
 - 結果: 等価性 9 件・単体 51 件を含む全 127 件が緑 (venv, Python 3.13)。
 
 ---
@@ -284,6 +289,9 @@ lead 区間の重なり、`table_id` の重複、fallback 先の存在、各モ�
     原因は既存の `tests/test_ensemble.py` → `backtest/plugin_confidence_snapshot.py:55` の `git status --porcelain` (`--no-optional-locks` 無し) が
     index のロックファイルを作って消すため (index 自体は書き換わらない)。新規の `tests/test_mos*.py` だけを回したときは `.git` の更新時刻が変わらないことを確認した。
     `plugin_confidence_snapshot.py` は収集系なので今回は触っていない (直すなら `git --no-optional-locks` を足すだけ。系列への影響は無いはずだが判断は保留)。
+  - その後の対応 (2026-09-23): 指示を受けて `2a56ee5` で `--no-optional-locks` を追加。修正前後で envelope が同じことを `tests/test_plugin_identity.py` で確認し、
+    修正後は全テストを回しても本体 `.git` の更新時刻が変わらないことを確認した。
+  - `plugin_identity` の既知の癖: `stdout.strip()` で `git_dirty_files` の 1 行目の先頭の空白 (porcelain の状態列) が落ちる。envelope を変えないため修正しない。
 
 ---
 
