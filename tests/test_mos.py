@@ -233,3 +233,44 @@ def test_in_scope_edges(ts):
 def test_bad_arguments(ts, kw):
     with pytest.raises(ValueError):
         cal(ts, 5.0, **kw)
+
+
+# ---------------------------------------------------------------- schema 2 (mos 0.2.0)
+NEW_TABLE_PATH = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7.json"
+
+
+def load_new():
+    return json.loads(NEW_TABLE_PATH.read_text(encoding="utf-8"))
+
+
+def test_schema2_table_parses_with_per_row_metadata():
+    doc = load_new()
+    ts = mos.parse_table_set(doc)
+    assert ts.schema_version == 2 and doc["min_mos_version"] == "0.2.0"
+    for t in ts.tables:
+        assert t.meta["training_source"]["api"] and t.meta["normalization"]["source"]
+        assert ts.reference_p[t.table_id] == t.meta["normalization"]["p_ref"]
+    assert {t.table_id: t.meta["training_source"]["n_levels"] for t in ts.tables} == {
+        "ecmwf_ifs025/h0-48": 5, "ecmwf_ifs025/h48-120": 5, "ecmwf_ifs025/h120-240": 5, "jma_msm/h0-48": 7, "jma_msm/h48-96": 5}
+
+
+@pytest.mark.parametrize("mutate, msg", [
+    (lambda d: d["tables"][0].pop("normalization"), "missing key 'normalization'"),
+    (lambda d: d["tables"][3].pop("training_source"), "missing key 'training_source'"),
+    (lambda d: d["tables"][4]["normalization"].update(p_ref=0.0), "p_ref must be in"),
+    (lambda d: d["tables"][4]["normalization"].pop("source"), "missing key 'source'"),
+    (lambda d: d["tables"][3]["training_source"].update(levels_hpa=[]), "levels_hpa"),
+    (lambda d: d.update(min_mos_version="0.3.0"), "needs mos"),
+])
+def test_schema2_errors(mutate, msg):
+    doc = load_new()
+    mutate(doc)
+    with pytest.raises(SchemaError, match=msg):
+        mos.parse_table_set(resealed(doc))
+
+
+def test_old_table_untouched_by_r12():
+    """既存の表は schema 1 / min_mos_version 0.1.0 のまま (mos 0.2.0 でも読める)。"""
+    doc = load_doc()
+    assert doc["schema_version"] == 1 and doc["min_mos_version"] == "0.1.0"
+    assert mos.parse_table_set(doc).schema_version == 1

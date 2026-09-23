@@ -169,3 +169,43 @@ def test_series_equivalence_synthetic(core, ts):
             assert len(ours) == len(theirs)
             for a, b in zip(ours, theirs):
                 assert a == b or (a is not None and b is not None and math.isnan(a) and math.isnan(b)), (a, b)
+
+
+# ---------------------------------------------------------------- R12 候補の表 (MSM d1-2 行だけ 7 面で学習し直したもの)
+NEW_TABLE_PATH = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7.json"
+
+
+@pytest.fixture(scope="module")
+def ts_new():
+    return mos.parse_table_set(json.loads(NEW_TABLE_PATH.read_text(encoding="utf-8")))
+
+
+def test_new_table_unchanged_rows_equal_v150(core, ts_new):
+    """ECMWF の全行と MSM の d3-4 行 (lead_day 3 以降、範囲外は nearest) は、旧基準値のまま = 本体 v1.5.0 と完全一致。未知モデルも ECMWF と同じ。"""
+    compared = 0
+    for model, lead_days in [("ecmwf_ifs025", range(1, 17)), ("gfs_seamless", range(1, 17)), ("jma_msm", range(3, 17))]:
+        for lead_day in lead_days:
+            for v in VALUES:
+                theirs = core.calibrated_cloud_pct(v, model, lead_day)
+                ours = mos.calibrate(ts_new, v, model=model, lead_hours=24 * (lead_day - 1), hour_jst=22, month=11,
+                                     on_mismatch="allow", **KW).value
+                assert ours == theirs and type(ours) is type(theirs), (model, lead_day, v, ours, theirs)
+                compared += 1
+    assert compared == (16 + 16 + 14) * len(VALUES)
+    assert ts_new.reference_p["jma_msm/h48-96"] == core.CLOUD_CALIBRATION_P_REF["jma_msm"]
+
+
+def test_new_table_msm_d12_row_is_retrained(core, ts_new):
+    t = next(x for x in ts_new.tables if x.table_id == "jma_msm/h0-48")
+    p_ref = ts_new.reference_p[t.table_id]
+    assert p_ref == t.p[0] and p_ref != core.CLOUD_CALIBRATION_P_REF["jma_msm"]
+    assert t.meta["training_source"]["n_levels"] == 7 and 900 in t.meta["training_source"]["levels_hpa"]
+    for lead_day in (1, 2):
+        r = mos.calibrate(ts_new, 0.0, model="jma_msm", lead_hours=24 * (lead_day - 1), hour_jst=12, month=7, **KW)
+        assert r.value == 0.0 and r.table_id == "jma_msm/h0-48"                       # 案C: d1-2 の 0% は実効 0%
+        for v in VALUES[1:]:
+            if v != v:          # NaN
+                continue
+            p = t.p[mos.bin_index(ts_new.edges, v)]
+            ours = mos.calibrate(ts_new, v, model="jma_msm", lead_hours=24 * (lead_day - 1), hour_jst=12, month=7, **KW).value
+            assert ours == round(min(100.0, max(0.0, 100.0 * (1.0 - p / p_ref))), 1)
