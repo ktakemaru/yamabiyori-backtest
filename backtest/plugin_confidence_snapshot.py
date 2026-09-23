@@ -45,10 +45,11 @@ SLEEP_SECONDS = 2.0
 
 
 def plugin_identity(plugin_dir: Path) -> dict:
-    """本体の git hash 等。git が無い/失敗した場合は None を入れて続行 (sha256 は常に取る)。"""
+    """本体の git hash 等。git が無い/失敗した場合は None を入れて続行 (sha256 は常に取る)。
+    --no-optional-locks: `git status` が本体の .git に index のロックや stat 情報の更新を書かないようにする (出力は変わらない)。"""
     def git(*args):
         try:
-            return subprocess.run(["git", "-C", str(plugin_dir), *args], capture_output=True, text=True, timeout=30,
+            return subprocess.run(["git", "--no-optional-locks", "-C", str(plugin_dir), *args], capture_output=True, text=True, timeout=30,
                                   check=True).stdout.strip()
         except (subprocess.SubprocessError, FileNotFoundError):
             return None

@@ -26,7 +26,7 @@
 | # | 項目 | 再開の目安 | 揃うべきデータ | 回すもの |
 |---|---|---|---|---|
 | 1 | **確信度スコアの較正** (本体 `compute_ensemble_confidence_by_day` の cloud/precip/temp 確信度と実況の関係; 0〜40pt / 0〜8°C の暫定閾値の再調整) | 蓄積 3〜6 か月 → **2027 年初** | `data/snapshots/ensemble/<日>/00Z_*_members.json.gz` と `data/snapshots/plugin_confidence/<日>/00Z.json.gz` が 90 日分以上 + 同期間のアメダス (`data/obs/amedas/`)、富士山頂は 7〜8 月の日照だけなので夏を 1 回含むと良い | 未作成。`parse_single_runs.py` に倣って members → long Parquet (site, run, valid_time, variable, member, value) を作り、`skill.py` の AUC/Brier で「スプレッド (or wet_fraction) が小さいほど当たるか」を lead 別に。plugin_confidence の出力は **本体の版が混ざる** (v1.3.0 a65656e/d8d44cf → v1.4.0 87c9c3c (R8, 2026-09-19: 確信度の precip 系が変わる) → v1.5.0 7c9e8f6 (R1: 確信度には影響なし)) ので、`python -m backtest.confidence_by_hash summary` で版を確認し、**較正対象は v1.5.0 以降 (7c9e8f6〜) の出力**とする。それ以前の分は `confidence_by_hash recompute --plugin-dir <較正対象の版の checkout>` で保存済み入力から再計算して揃える (スナップショットに入力の生レスポンスが入っている) |
-| 2 | **寒候期の検証** (RH 由来の山頂雲量が冬型の下層雲・筋状雲でも順序性を保つか; R6) | 次の冬 → **2027 年 3 月** | `data/snapshots/forecast/` の 2026-12〜2027-02 (気圧面 7 面付き) + 同期間のアメダス日照 (`data/obs/amedas/`; 富士山頂は冬に日照無し) | `python -m backtest.parse_single_runs` の Forecast スナップショット版が必要 (スナップショットはラン混在なので lead は `fetched_at` 基準の近似; api-findings §10.1) → `trackb_eval.py` の `lead_day_pairs` / `report` を季節フィルタ付きで。Track A 側は `python -m backtest.tracka_eval` をそのまま (Previous Runs を `python -m backtest.fetch_previous_runs --start 2026-10-01 --end 2027-03-31` で追加取得してから) |
+| 2 | **寒候期の検証** (RH 由来の山頂雲量が冬型の下層雲・筋状雲でも順序性を保つか; R6) | 次の冬 → **2027 年 3 月** | `data/snapshots/forecast/` の 2026-12〜2027-02 (気圧面 7 面付き) + 同期間のアメダス日照 (`data/obs/amedas/`; 富士山頂は冬に日照無し) | `python -m backtest.parse_single_runs` の Forecast スナップショット版が必要 (スナップショットはラン混在なので lead は `fetched_at` 基準の近似; api-findings §10.1) → `trackb_eval.py` の `lead_day_pairs` / `report` を季節フィルタ付きで。Track A 側は `python -m backtest.tracka_eval` をそのまま (Previous Runs を `python -m backtest.fetch_previous_runs --start 2026-10-01 --end 2027-03-31` で追加取得してから)。**R1 の冬の評価手順 (lead の 2 通りの数え方 = R11 を含む) と、短いリードでの暫定結果は [docs/r1-winter-provisional.md](docs/r1-winter-provisional.md) §4** |
 | 3 | **層別雲量 (low/mid/high) の通年評価** (本体の雲海判定・層別表示に精度の裏付けを付ける) | Forecast スナップショット 1 年 → **2027 年 9 月** | `data/snapshots/forecast/` 12 か月 (`cloud_cover_low/mid/high` + 7 面) + アメダス日照 12 か月 | 未作成。#2 のスナップショット→Parquet 変換を流用し、`trackb_eval.discrimination_table` を predictor = cloud_cover_low/mid/high/at_summit で。雲海は「山頂晴れ × 麓曇り」の同時分割表 (麓アメダス日照 + 山頂は富士山頂日照 or ひまわり) |
 | 4 | **夜間検証** (夜明け前の雲海判定・星空; R7) | 未着手・データ源から | ひまわり赤外 (雲頂温度) を実況にする。JMA の ひまわり画像 (`www.jma.go.jp/bosai/himawari/`) は PNG タイルで数値でない → NICT ひまわりアーカイブ (gridded, 要確認) か気象庁の配信を Phase 0 と同じ手順で実測してから | 未作成。まず `probe/` に Phase 0 と同じプローブを書き、api-findings に §12 として事実だけ記録。実況が取れると分かってから収集系統 4 を Phase 2 の型で追加 |
 | 5 | **稜線風** (本体の稜線風・windward/lee 判定; R7) | **恒久課題** (実況が存在しない: 富士山も 2004 年に風観測終了) | 代替: 高標高アメダス (野辺山 1,350m・菅平 1,253m 等) の 10m 風で「格子風 → 地点風」の系統誤差だけ見る、または登山記録 SNS の風の記述 (本体側 `scratch_past_date.py` の手法) | Phase 1 の Parquet に `wind_speed_10m` (m/s) は保存済み。`quicklook.py` の MAE を wind に広げるだけなら即可能だが、稜線の検証にはならないことを明記して |
@@ -157,6 +157,38 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
 - `backtest/quantile_map.py`: 山頂雲量 → 晴れる確率の分位点マッピング (0% 塊は経験確率 1 点 + 正値は地点別 CDF の分位ビン) を
   leave-one-site-out で Brier / 信頼度図により評価 → `docs/quantile-map-tables.txt` (findings §9)。暖候期のみ・本体には入れない。
 - 結果と解釈は [docs/track-b-findings.md](docs/track-b-findings.md)、本体への推奨は [docs/product-recommendations.md](docs/product-recommendations.md)。
+
+## MOS モジュール (`mos/`)
+
+補正ロジックを山固有の処理から切り離した、移植用のモジュール。設計は [docs/mos-module-design.md](docs/mos-module-design.md)。
+最初の題材は R1 (山頂雲量 → P(晴れ) → 本体 v1.5.0 の実効雲量, 案C)。
+
+- `mos/`: 補正の純粋関数 (`parse_table_set` / `select_table` / `calibrate` など)。I/O なし。現在 `mos.MOS_VERSION = "0.1.0"`。
+- `mos_tables/r1-summit-cloud-sunny.json`: R1 の表 (新形式, schema v1)。`python -m backtest.mos_export` で parquet から作り直す
+  (既存の `docs/cloud-calibration-table.json` と数値が一致しなければ止まる)。
+- `tests/test_mos.py` (単体)、`tests/test_mos_equivalence.py` (本体 v1.5.0 = `52d3d2a` を `git show` で一時フォルダに取り出して、同一入力で同一出力になることを確認。本体・当該コミットが無ければ skip)。
+
+```python
+import json, mos
+ts = mos.parse_table_set(json.load(open("mos_tables/r1-summit-cloud-sunny.json", encoding="utf-8")))
+r = mos.calibrate(ts, 12.0, predictor="cloud_cover_at_summit", target="p_sunny", model="ecmwf_ifs025",
+                  lead_hours=30, hour_jst=10, month=8)          # lead_hours = ラン初期時刻からの経過時間
+r.value, r.applied, r.in_scope, r.table_id                      # (63.2, True, True, 'ecmwf_ifs025/h0-48')
+```
+
+**移植時の注意**
+
+- **標準ライブラリのみ**。`mos/` に polars / numpy / requests を持ち込まない (テストが import を検査する)。Python 3.8 の構文に収める
+  (match 文などを使わない。テストが `ast.parse(feature_version=(3, 8))` で検査)。
+- **版の検査**: `mos/` はディレクトリごとコピーし、表は `json.load` → `mos.parse_table_set()` で読む。スキーマ名・`schema_version`・
+  `min_mos_version`・`content_sha256` のどれかが合わなければ `SchemaError` で止まる (手編集や別の版とのコピー取り違えを検出)。
+  移植先には `mos.MOS_VERSION` と表の `table_set_version`・`content_sha256` を期待値と比べるテストを 1 本置き、コピー元のコミットを記録する。
+- **現在の表は日中・暖候期だけ** (JST 07〜17 時に終わる 1 時間、valid_time が 6〜9 月)。範囲外で引くと既定では `ContextMismatchError`。
+  `on_mismatch="passthrough"` (生値を返す) / `"allow"` (範囲外でも使い `in_scope=False`) は呼び出し箇所で意図して指定する。
+  説明変数・目的変数が違う表 (例: 全層雲量 `cloud_cover` に R1 表) はどの指定でもエラー。
+- **lead はラン初期時刻からの経過時間 (時間)**。本体 v1.5.0 は取得日基準の暦日差で数えていて学習と違う (product-recommendations R11)。
+- 検証済み標高は表の `validated_elevation` を見る。R1 は 2578〜2899m が confirmed、1700m (安達太良山・鷲倉, 8 日分) は provisional。
+- hoshibiyori へのコピーは未承認 (夜間・全層雲量の表ができた時点で改めて判断)。
 
 ## テスト
 
