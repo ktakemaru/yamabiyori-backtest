@@ -19,6 +19,7 @@ T_H5 / T_H7 の評価は地点を 1 つずつ外す (leave-one-site-out)。組�
     python -m backtest.r12_msm_retrain export     # → mos_tables/r1-summit-cloud-sunny-msm7.json (既存の表は変更しない)
     python -m backtest.r12_msm_retrain transplant          # 移植表の評価 → docs/r12-msm-transplant-tables.txt
     python -m backtest.r12_msm_retrain export-transplant   # → mos_tables/r1-summit-cloud-sunny-msm7-transplant.json
+    python -m backtest.r12_msm_retrain effective-ci        # ビンごとの実効雲量の 95% 区間 → docs/r12-msm-effective-ci.txt
 
 移植表 (T): 旧表の MSM d1-2 行 (Single Runs の本物の lead 0-48h の絶対水準) に、「Historical 7 面表 ÷ Historical 5 面表」のビンごとの比を掛けた行。
 面の数の効果だけを移し、データ源 (実質リードの短さ) の水準は持ち込まない狙い。基準値 (0% ビン) も同じ比で移す。
@@ -56,6 +57,7 @@ OUT_TXT = REPO / "docs" / "r12-msm-retrain-tables.txt"
 OUT_TABLE = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7.json"
 OUT_TP_TXT = REPO / "docs" / "r12-msm-transplant-tables.txt"
 OUT_TP_TABLE = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7-transplant.json"
+OUT_EFF_CI = REPO / "docs" / "r12-msm-effective-ci.txt"
 OLD_TABLE = REPO / "mos_tables" / "r1-summit-cloud-sunny.json"
 MODEL = "jma_msm"
 SITE_IDS = ["karamatsu", "akadake", "nikko_shirane", "adatara"]
@@ -446,6 +448,77 @@ def evaluate_transplant() -> str:
             + fmt(d34rows, 3) + "\n")
 
 
+def _counts_by_day(d: pl.DataFrame, bcol: str) -> dict:
+    nb = len(BIN_EDGES)
+    out = {}
+    for day, b, y in zip(d["date_jst"].to_list(), d[bcol].to_list(), d["y"].to_list()):
+        n, k = out.setdefault(day, ([0] * nb, [0] * nb))
+        n[b] += 1
+        k[b] += y
+    return out
+
+
+def _fit_from_counts(n: list, k: list) -> list:
+    """fit_row と同じ (空のビンは 0.0・重み 1 で PAV)、ただし集計済みの n / k から。"""
+    raw = [(k[i] / n[i]) if n[i] else 0.0 for i in range(len(n))]
+    return [round(u, 3) for u in pav_decreasing(raw, [max(x, 1) for x in n])]
+
+
+def evaluate_effective_ci(n_boot: int = N_BOOT, seed: int = SEED) -> str:
+    """移植表と新表の MSM d1-2 行の実効雲量 (案C) に、日単位ブロックのブートストラップで 95% 区間を付ける。
+    毎回、抽出した日で Historical 5 面・7 面の表を作り直し (= 新表)、比も作り直して旧表に掛ける (= 移植表)。旧表は固定。"""
+    pl.Config.set_tbl_width_chars(260)
+    old = json.loads(OLD_TABLE.read_text(encoding="utf-8"))
+    old_p = [b["p"] for b in next(t for t in old["tables"] if t["table_id"] == "jma_msm/h0-48")["bins"]]
+    d = frame()
+    c5, c7 = _counts_by_day(d, "b5"), _counts_by_day(d, "b7")
+    days = sorted(c7)
+    nb = len(BIN_EDGES)
+
+    def tables(sample):
+        n5, k5, n7, k7 = [0] * nb, [0] * nb, [0] * nb, [0] * nb
+        for day in sample:
+            for i in range(nb):
+                n5[i] += c5[day][0][i]; k5[i] += c5[day][1][i]
+                n7[i] += c7[day][0][i]; k7[i] += c7[day][1][i]
+        h5, h7 = _fit_from_counts(n5, k5), _fit_from_counts(n7, k7)
+        tp = transplant(old_p, h5, h7, "ratio")
+        return effective(h7, h7[0]), effective(tp, tp[0])
+
+    eff_b, eff_t = tables(days)
+    rng = random.Random(seed)
+    boots_b, boots_t, boots_d = [[] for _ in range(nb)], [[] for _ in range(nb)], [[] for _ in range(nb)]
+    for _ in range(n_boot):
+        sample = [days[rng.randrange(len(days))] for _ in days]
+        eb, et = tables(sample)
+        for i in range(nb):
+            boots_b[i].append(eb[i]); boots_t[i].append(et[i]); boots_d[i].append(et[i] - eb[i])
+    lo, hi = int(0.025 * n_boot), int(0.975 * n_boot) - 1
+
+    def ci(xs):
+        xs = sorted(xs)
+        return xs[lo], xs[hi]
+
+    n7 = [sum(c7[day][0][i] for day in days) for i in range(nb)]
+    n5 = [sum(c5[day][0][i] for day in days) for i in range(nb)]
+    old_n = [b["n"] for b in next(t for t in old["tables"] if t["table_id"] == "jma_msm/h0-48")["bins"]]
+    rows = []
+    for i, lab in enumerate(mx.BIN_LABELS):
+        (bl, bh), (tl, th), (dl, dh) = ci(boots_b[i]), ci(boots_t[i]), ci(boots_d[i])
+        rows.append({"bin": lab, "n_h7": n7[i], "n_h5": n5[i], "n_old_single_runs": old_n[i],
+                     "eff_old_v150": effective(old_p, old_p[0])[i],
+                     "eff_new": eff_b[i], "new_lo": bl, "new_hi": bh, "eff_tp": eff_t[i], "tp_lo": tl, "tp_hi": th,
+                     "d_tp_minus_new": round(eff_t[i] - eff_b[i], 1), "d_lo": round(dl, 1), "d_hi": round(dh, 1),
+                     "p_boot_tp_lower": f"{sum(1 for x in boots_d[i] if x < 0) / n_boot:.3f}"})
+    return ("## R12 候補表の MSM d1-2 行: ビンごとの実効雲量 (案C) と 95% 区間\n"
+            f"日単位ブロックのブートストラップ ({n_boot} 回, seed {seed}, 日の並びは固定)。標本は r12-msm-retrain-tables.txt と同じ "
+            f"({d.height} 時間、{len(days)} 日、4 地点)。\n"
+            "毎回: 抽出した日で Historical 5 面・7 面の表を作り直す → 新表 = 7 面の表、移植表 = 旧表 × (7 面 / 5 面) の比 (旧表は固定)。実効雲量は各表の 0% ビンで正規化。\n"
+            "d_tp_minus_new = 移植表 − 新表 (負 = 移植表が甘い)。区間はビンごとの分位点 (同時区間ではない)。p_boot_tp_lower = 移植表の方が低い (甘い) 割合。\n"
+            "n_h7 / n_h5 = Historical 7 面 / 5 面の入力でそのビンに入った時間数、n_old_single_runs = 旧表 (Single Runs, lead 0-48h) の学習時の n。\n\n"
+            + fmt(pl.DataFrame(rows), 1) + "\n")
+
+
 def build_transplant_table(git: dict, today: date) -> dict:
     """msm7 候補表と同じ組み立てで、MSM d1-2 行だけを移植行に差し替える。"""
     doc = build_new_table(git, today)
@@ -490,7 +563,7 @@ def build_transplant_table(git: dict, today: date) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["fetch", "usage", "eval", "export", "transplant", "export-transplant"])
+    ap.add_argument("cmd", choices=["fetch", "usage", "eval", "export", "transplant", "export-transplant", "effective-ci"])
     ap.add_argument("--out", type=Path)
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
@@ -501,6 +574,10 @@ def main(argv=None) -> int:
     elif args.cmd == "eval":
         txt = evaluate() + "\n\n" + usage()
         (args.out or OUT_TXT).write_text(txt, encoding="utf-8")
+        print(txt)
+    elif args.cmd == "effective-ci":
+        txt = evaluate_effective_ci()
+        (args.out or OUT_EFF_CI).write_text(txt, encoding="utf-8")
         print(txt)
     elif args.cmd == "transplant":
         txt = evaluate_transplant()
