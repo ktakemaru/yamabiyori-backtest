@@ -21,7 +21,7 @@ from pathlib import Path
 
 import polars as pl
 
-from mos import MOS_VERSION, SCHEMA_NAME, content_sha256, parse_table_set
+from mos import SCHEMA_NAME, content_sha256, parse_table_set
 
 from . import config
 from .cloud_calibration_table import BIN_EDGES, BIN_LABELS, LEAD_GROUPS, OUT_JSON as LEGACY_JSON, build
@@ -31,6 +31,8 @@ REPO = config.DATA_DIR.parent
 OUT = REPO / "mos_tables" / "r1-summit-cloud-sunny.json"
 TABLE_SET_ID = "r1-summit-cloud-sunny"
 TABLE_SET_VERSION = "1.0.0"
+SCHEMA_VERSION = 1
+MIN_MOS_VERSION = "0.1.0"      # schema 1 の表は mos 0.1.0 から読める (mos 0.2.0 で schema 2 を追加しても変えない)
 PREDICTOR = "cloud_cover_at_summit"
 TARGET = "p_sunny"
 PROVISIONAL_MIN_DAYS = 30        # 地点の標本が 30 日 (JST の valid 日付の数) 未満なら provisional。根拠は docs/mos-module-design.md §2.3
@@ -144,7 +146,7 @@ def build_doc(sr: pl.DataFrame, obs: pl.DataFrame, git: dict, today: date, legac
                          for b in entry["bins"]],
             })
     doc = {
-        "schema": SCHEMA_NAME, "schema_version": 1, "min_mos_version": MOS_VERSION,
+        "schema": SCHEMA_NAME, "schema_version": SCHEMA_VERSION, "min_mos_version": MIN_MOS_VERSION,
         "table_set_id": TABLE_SET_ID, "table_set_version": TABLE_SET_VERSION,
         "description": "R1: summit cloud (%) -> P(sunny), and the effective cloud the plugin v1.5.0 scores with (案C). "
                        "Warm-season daytime only; see each table's time_of_day / season / validated_elevation.",

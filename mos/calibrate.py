@@ -106,12 +106,13 @@ def probability(ts: TableSet, table: Table, value: Optional[float]) -> Optional[
 def effective_value(ts: TableSet, table: Table, value: Optional[float]) -> Optional[float]:
     """表セットの transform に従う出力。
     probability: 確率そのもの。
-    ratio_to_reference: round(clamp(scale * (1 - p / p_ref)), round_decimals)、p_ref は同じ (predictor, target, model) の基準表・基準ビン。"""
+    ratio_to_reference: round(clamp(scale * (1 - p / p_ref)), round_decimals)。p_ref は schema 1 では同じ (predictor, target, model) の
+    基準表・基準ビン、schema 2 ではそのテーブルの normalization.p_ref。"""
     p = probability(ts, table, value)
     if p is None or ts.transform.kind == "probability":
         return p
     tr = ts.transform
-    p_ref = ts.reference_p[(table.predictor, table.target, table.model)]
+    p_ref = ts.reference_p[table.table_id]
     return round(min(tr.clamp[1], max(tr.clamp[0], tr.scale * (1.0 - p / p_ref))), tr.round_decimals)
 
 

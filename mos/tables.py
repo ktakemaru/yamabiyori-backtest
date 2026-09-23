@@ -8,9 +8,9 @@ from typing import Dict, Optional, Tuple
 
 from .errors import SchemaError
 
-MOS_VERSION = "0.1.0"
+MOS_VERSION = "0.2.0"
 SCHEMA_NAME = "yamabiyori-mos-table"
-SUPPORTED_SCHEMA_VERSIONS = (1,)
+SUPPORTED_SCHEMA_VERSIONS = (1, 2)
 BINNING_KINDS = ("zero_atom_right_closed",)
 TRANSFORM_KINDS = ("probability", "ratio_to_reference")
 LEAD_OUT_OF_RANGE = ("nearest_group", "error")
@@ -18,6 +18,8 @@ TIME_OF_DAY_LABELS = ("day", "night", "all")
 SEASON_LABELS = ("warm", "cold", "all")
 REQUIRED_TABLE_KEYS = ("table_id", "predictor", "target", "model", "lead_hours", "lead_definition", "time_of_day", "season",
                        "observation", "training_period", "validated_elevation", "provenance", "n", "bins")
+# schema 2 (mos 0.2.0) で各テーブルに必須: 学習データ源と面 (training_source)、正規化の基準値 (normalization)
+REQUIRED_TABLE_KEYS_V2 = ("training_source", "normalization")
 
 
 @dataclass(frozen=True)
@@ -53,7 +55,7 @@ class TableSet:
     unknown_model: Optional[str]
     lead_out_of_range: str
     tables: Tuple[Table, ...]
-    reference_p: Dict[Tuple[str, str, str], float] = field(repr=False, compare=False)   # (predictor, target, model) -> p_ref
+    reference_p: Dict[str, float] = field(repr=False, compare=False)   # table_id -> p_ref (ratio_to_reference のとき)
     doc: dict = field(repr=False, compare=False)
 
 
@@ -92,28 +94,32 @@ def _int_list(xs, lo: int, hi: int, where: str) -> Tuple[int, ...]:
     return tuple(xs)
 
 
-def _parse_transform(tr: dict) -> Transform:
+def _parse_transform(tr: dict, schema_version: int) -> Transform:
     kind = _req(tr, "kind", "transform")
     if kind not in TRANSFORM_KINDS:
         raise SchemaError("transform.kind %r not in %r" % (kind, TRANSFORM_KINDS))
     if kind == "probability":
         return Transform(kind=kind)
     clamp = _req(tr, "clamp", "transform")
-    ref = _req(tr, "reference", "transform")
-    lead = _req(ref, "lead_hours", "transform.reference")
     rd = _req(tr, "round_decimals", "transform")
     if isinstance(rd, bool) or not isinstance(rd, int):
         raise SchemaError("transform.round_decimals must be an integer")
-    if not isinstance(clamp, list) or len(clamp) != 2 or not isinstance(lead, list) or len(lead) != 2:
-        raise SchemaError("transform.clamp / reference.lead_hours must be [lo, hi]")
-    return Transform(kind=kind, scale=_number(_req(tr, "scale", "transform"), "transform.scale"),
-                     clamp=(_number(clamp[0], "clamp"), _number(clamp[1], "clamp")), round_decimals=rd,
-                     reference_lead_hours=(_number(lead[0], "reference"), _number(lead[1], "reference")),
-                     reference_bin=_req(ref, "bin", "transform.reference"))
+    if not isinstance(clamp, list) or len(clamp) != 2:
+        raise SchemaError("transform.clamp must be [lo, hi]")
+    common = dict(kind=kind, scale=_number(_req(tr, "scale", "transform"), "transform.scale"),
+                  clamp=(_number(clamp[0], "clamp"), _number(clamp[1], "clamp")), round_decimals=rd)
+    if schema_version >= 2 and "reference" not in tr:
+        return Transform(**common)          # schema 2: 基準値は各テーブルの normalization.p_ref
+    ref = _req(tr, "reference", "transform")
+    lead = _req(ref, "lead_hours", "transform.reference")
+    if not isinstance(lead, list) or len(lead) != 2:
+        raise SchemaError("transform.reference.lead_hours must be [lo, hi]")
+    return Transform(reference_lead_hours=(_number(lead[0], "reference"), _number(lead[1], "reference")),
+                     reference_bin=_req(ref, "bin", "transform.reference"), **common)
 
 
-def _parse_table(t: dict, n_bins: int) -> Table:
-    for k in REQUIRED_TABLE_KEYS:
+def _parse_table(t: dict, n_bins: int, schema_version: int = 1) -> Table:
+    for k in REQUIRED_TABLE_KEYS + (REQUIRED_TABLE_KEYS_V2 if schema_version >= 2 else ()):
         _req(t, k, "table %s" % t.get("table_id", "?") if isinstance(t, dict) else "table")
     where = "table %s" % t["table_id"]
     lead = t["lead_hours"]
@@ -163,7 +169,7 @@ def parse_table_set(doc: dict) -> TableSet:
     edges = tuple(_number(e, "binning.edges") for e in _req(binning, "edges", "binning"))
     if len(edges) < 2 or any(a >= b for a, b in zip(edges, edges[1:])):
         raise SchemaError("binning.edges must be strictly increasing with at least 2 entries")
-    transform = _parse_transform(_req(doc, "transform", "document"))
+    transform = _parse_transform(_req(doc, "transform", "document"), sv)
     fallback = _req(doc, "fallback", "document")
     unknown_model = _req(fallback, "unknown_model", "fallback")
     lead_oor = _req(fallback, "lead_out_of_range", "fallback")
@@ -173,7 +179,7 @@ def parse_table_set(doc: dict) -> TableSet:
     raw_tables = _req(doc, "tables", "document")
     if not isinstance(raw_tables, list) or not raw_tables:
         raise SchemaError("tables must be a non-empty list")
-    tables = tuple(_parse_table(t, len(edges)) for t in raw_tables)
+    tables = tuple(_parse_table(t, len(edges), sv) for t in raw_tables)
     ids = [t.table_id for t in tables]
     if len(set(ids)) != len(ids):
         raise SchemaError("table_id must be unique")
@@ -188,7 +194,23 @@ def parse_table_set(doc: dict) -> TableSet:
         raise SchemaError("fallback.unknown_model %r has no table" % (unknown_model,))
 
     reference_p = {}
-    if transform.kind == "ratio_to_reference":
+    if sv >= 2:
+        for t in tables:
+            where = "table %s" % t.table_id
+            src = _req(t.meta["training_source"], "api", where + " training_source")
+            if not isinstance(src, str) or not src:
+                raise SchemaError("%s: training_source.api must be a non-empty string" % where)
+            _int_list(_req(t.meta["training_source"], "levels_hpa", where + " training_source"), 1, 1100,
+                      where + " training_source.levels_hpa")
+            if transform.kind == "ratio_to_reference":
+                norm = t.meta["normalization"]
+                p_ref = _number(_req(norm, "p_ref", where + " normalization"), where + " normalization.p_ref")
+                if not 0.0 < p_ref <= 1.0:
+                    raise SchemaError("%s: normalization.p_ref must be in (0, 1]" % where)
+                if not isinstance(_req(norm, "source", where + " normalization"), str):
+                    raise SchemaError("%s: normalization.source must be a string" % where)
+                reference_p[t.table_id] = p_ref
+    elif transform.kind == "ratio_to_reference":
         if not isinstance(transform.reference_bin, int) or not 0 <= transform.reference_bin < len(edges):
             raise SchemaError("transform.reference.bin out of range")
         for key, ts in groups.items():
@@ -198,7 +220,8 @@ def parse_table_set(doc: dict) -> TableSet:
             p_ref = ref[0].p[transform.reference_bin]
             if p_ref <= 0.0:
                 raise SchemaError("reference p must be > 0 for %r" % (key,))
-            reference_p[key] = p_ref
+            for t in ts:
+                reference_p[t.table_id] = p_ref
 
     return TableSet(table_set_id=_req(doc, "table_set_id", "document"), table_set_version=_req(doc, "table_set_version", "document"),
                     schema_version=sv, edges=edges, transform=transform, unknown_model=unknown_model,

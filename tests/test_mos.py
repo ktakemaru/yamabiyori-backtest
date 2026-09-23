@@ -118,7 +118,8 @@ def test_exporter_reproduces_table_file():
 # ---------------------------------------------------------------- 版・スキーマの検査
 @pytest.mark.parametrize("mutate, msg", [
     (lambda d: d.update(schema="other"), "schema must be"),
-    (lambda d: d.update(schema_version=2), "not supported"),
+    (lambda d: d.update(schema_version=3), "not supported"),
+    (lambda d: d.update(schema_version=2), "missing key 'training_source'"),     # schema 2 は行ごとのデータ源・基準値が必須
     (lambda d: d.update(min_mos_version="99.0.0"), "needs mos"),
     (lambda d: d.update(min_mos_version="latest"), "X.Y.Z"),
     (lambda d: d["tables"][0].pop("observation"), "missing key 'observation'"),

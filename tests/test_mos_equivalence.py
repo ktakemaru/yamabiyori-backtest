@@ -98,8 +98,8 @@ def test_table_equals_body_constants(core, ts):
         assert t.model == model
         assert t.lead_hours == (24.0 * (lo - 1), 24.0 * hi)
         assert list(t.p) == list(bins)
-    for model, p_ref in core.CLOUD_CALIBRATION_P_REF.items():
-        assert ts.reference_p[(KW["predictor"], KW["target"], model)] == p_ref
+    for t in ts.tables:
+        assert ts.reference_p[t.table_id] == core.CLOUD_CALIBRATION_P_REF[t.model]
     assert core.CLOUD_CALIBRATION_ENABLED is True and core.CLOUD_CALIBRATION_FULL_SUMMIT_M is None
 
 
