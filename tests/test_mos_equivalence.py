@@ -173,11 +173,13 @@ def test_series_equivalence_synthetic(core, ts):
 
 # ---------------------------------------------------------------- R12 候補の表 (MSM d1-2 行だけ 7 面で学習し直したもの)
 NEW_TABLE_PATH = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7.json"
+TP_TABLE_PATH = REPO / "mos_tables" / "r1-summit-cloud-sunny-msm7-transplant.json"
 
 
-@pytest.fixture(scope="module")
-def ts_new():
-    return mos.parse_table_set(json.loads(NEW_TABLE_PATH.read_text(encoding="utf-8")))
+@pytest.fixture(scope="module", params=[NEW_TABLE_PATH, TP_TABLE_PATH], ids=["msm7", "msm7-transplant"])
+def ts_new(request):
+    """R12 の候補表 2 つ (Historical 7 面で学習し直した表 / 旧表 + 面の数の効果の移植表)。どちらも d1-2 以外は v1.5.0 と同じはず。"""
+    return mos.parse_table_set(json.loads(request.param.read_text(encoding="utf-8")))
 
 
 def test_new_table_unchanged_rows_equal_v150(core, ts_new):
@@ -209,3 +211,17 @@ def test_new_table_msm_d12_row_is_retrained(core, ts_new):
             p = t.p[mos.bin_index(ts_new.edges, v)]
             ours = mos.calibrate(ts_new, v, model="jma_msm", lead_hours=24 * (lead_day - 1), hour_jst=12, month=7, **KW).value
             assert ours == round(min(100.0, max(0.0, 100.0 * (1.0 - p / p_ref))), 1)
+
+
+def test_transplant_row_is_old_row_times_ratio(ts):
+    """移植表の MSM d1-2 行 = 旧表の行 × (Historical 7 面 / 5 面) の比 (PAV 後、3 桁に丸め)。記録した比と p_old から再計算して一致。"""
+    doc = json.loads(TP_TABLE_PATH.read_text(encoding="utf-8"))
+    row = next(t for t in doc["tables"] if t["table_id"] == "jma_msm/h0-48")
+    old_row = next(t for t in ts.tables if t.table_id == "jma_msm/h0-48")
+    assert [b["p_old"] for b in row["bins"]] == list(old_row.p)
+    tp = row["transplant"]
+    assert tp["method"] == "ratio" and len(tp["ratio_h7_h5"]) == len(row["bins"])
+    for b, a5, a7 in zip(row["bins"], tp["p_h5"], tp["p_h7"]):
+        assert b["p"] == round(b["p_old"] * a7 / a5, 3)
+    assert row["normalization"]["p_ref"] == row["bins"][0]["p"]
+    assert "移植" in row["training_source"]["note"] and "移植" in row["status"]

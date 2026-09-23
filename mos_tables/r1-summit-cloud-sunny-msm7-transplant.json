@@ -1,0 +1,1376 @@
+{
+ "schema": "yamabiyori-mos-table",
+ "schema_version": 2,
+ "min_mos_version": "0.2.0",
+ "table_set_id": "r1-summit-cloud-sunny-msm7-transplant",
+ "table_set_version": "1.1.0",
+ "description": "R1 with the jma_msm 0-48h row = v1.5.0 row x (Historical 7-level / 5-level) per-bin ratio: keeps the Single Runs absolute level (true 0-48h leads) and transplants only the 900/800hPa effect (R12 candidate). ECMWF rows and the jma_msm 48-96h row are copied from r1-summit-cloud-sunny 1.0.0 with their original normalization (equal to plugin v1.5.0). Needs mos >= 0.2.0.",
+ "provenance": {
+  "generator": "backtest/r12_msm_retrain.py (export)",
+  "commit": "4e1060a21343bacdf97d3df9af7f016db05cd985",
+  "dirty": false,
+  "exported": "2026-09-23",
+  "source_sha256": {
+   "backtest/cloud_calibration_table.py": "8fccf87dda1d44ba7fa5798be0765a58d71819ab3bd99d83c7962339d516cbf2",
+   "backtest/trackb_eval.py": "0a527301181bb6bb169e83fa191b1d0740584dc20e45c0afae768564a95b3212",
+   "backtest/quantile_map.py": "7f68f07fcf11e18b431e54b01fd7c581570eabb01e383a9d6c58cb3f63c82aab",
+   "backtest/mos_export.py": "d34d59dfb3430e4b2d9b8f2220a6f5986af839ee5f1b6f20d0f244c3e6988432",
+   "backtest/config.py": "49a45ed271a12e891bd973dc7cc568d717d5ad9a2303753b576dd1b81ea6a77a",
+   "backtest/r12_msm_retrain.py": "323183e81314e788581a913af97f5ea51a8363f6f73fe0f8fe55df602adf975d",
+   "backtest/winter_r1.py": "4a514df1e62bf081e041b553f8b4a0ab1c366a138e976477ead3c65eac3e466e"
+  },
+  "old_table": {
+   "table_set_id": "r1-summit-cloud-sunny",
+   "table_set_version": "1.0.0",
+   "content_sha256": "f8dbda740943fb43e7ffe7af675a7aa4ac2d78a05b85332c29c5dc8ae7e81ff4",
+   "path": "mos_tables/r1-summit-cloud-sunny.json"
+  }
+ },
+ "binning": {
+  "kind": "zero_atom_right_closed",
+  "edges": [
+   0,
+   10,
+   20,
+   30,
+   40,
+   50,
+   70,
+   100
+  ],
+  "labels": [
+   "0",
+   "(0,10]",
+   "(10,20]",
+   "(20,30]",
+   "(30,40]",
+   "(40,50]",
+   "(50,70]",
+   "(70,100]"
+  ]
+ },
+ "transform": {
+  "kind": "ratio_to_reference",
+  "scale": 100,
+  "clamp": [
+   0,
+   100
+  ],
+  "round_decimals": 1,
+  "note": "effective = 100 * (1 - p / p_ref) with each row's normalization.p_ref (schema 2)"
+ },
+ "fallback": {
+  "unknown_model": "ecmwf_ifs025",
+  "lead_out_of_range": "nearest_group"
+ },
+ "tables": [
+  {
+   "table_id": "ecmwf_ifs025/h0-48",
+   "predictor": "cloud_cover_at_summit",
+   "predictor_unit": "%",
+   "predictor_definition": "Open-Meteo pressure-level cloud cover (1000-600hPa) interpolated to the summit elevation linearly in geopotential height each hour (same as the plugin's add_altitude_columns)",
+   "target": "p_sunny",
+   "target_definition": "P(sun1h >= 0.4 h in the hour ending at valid_time)",
+   "model": "ecmwf_ifs025",
+   "lead_hours": [
+    0,
+    48
+   ],
+   "lead_definition": "hours from the run's initial time to valid_time; the table covers [lo, hi). Training grouped lead_day = lead_hours // 24 + 1",
+   "lead_days_legacy": [
+    1,
+    2
+   ],
+   "time_of_day": {
+    "label": "day",
+    "basis": "clock_jst_hour_ending",
+    "hours_jst": [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17
+    ],
+    "source": "backtest/trackb_eval.py DAY_HOURS_JST (hour ending HH:00 JST)"
+   },
+   "season": {
+    "label": "warm",
+    "basis": "valid_month_jst",
+    "months": [
+     6,
+     7,
+     8,
+     9
+    ],
+    "sampled_valid_dates_jst": [
+     "2026-06-12",
+     "2026-09-18"
+    ],
+    "source": "months present in the training sample (no season filter in the training code; tracka_eval.WARM_MONTHS = 4-9 is a different analysis and is not used here)"
+   },
+   "observation": {
+    "kind": "foot_amedas_sun1h",
+    "pairing": "summit forecast vs the foot station's sunshine (representativeness error included)",
+    "event": "sun1h >= 0.4 h",
+    "sources_preference": "etrn_cache preferred over amedas_map at the same hour (trackb_eval.obs_wide)",
+    "stations": [
+     {
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "summit": "adatara"
+     },
+     {
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "summit": "akadake"
+     },
+     {
+      "station_id": "48141",
+      "station_name": "白馬",
+      "summit": "karamatsu"
+     },
+     {
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "summit": "nikko_shirane"
+     }
+    ]
+   },
+   "training_period": {
+    "run_init_utc": [
+     "2026-06-12T00:00:00+00:00",
+     "2026-09-17T00:00:00+00:00"
+    ],
+    "run_hours_utc": [
+     0
+    ],
+    "forecast_value": "mean of T-1h and T (value_h1); applied to single hourly values"
+   },
+   "validated_elevation": {
+    "provisional_rule": {
+     "min_days": 30,
+     "days": "distinct JST dates of valid_time in this table's sample"
+    },
+    "confirmed_m": [
+     2578,
+     2899
+    ],
+    "including_provisional_m": [
+     1700,
+     2899
+    ],
+    "sites": [
+     {
+      "site_id": "adatara",
+      "name": "安達太良山",
+      "elevation_m": 1700,
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "n": 160,
+      "days": 8,
+      "share": 0.025,
+      "status": "provisional"
+     },
+     {
+      "site_id": "akadake",
+      "name": "八ヶ岳(赤岳)",
+      "elevation_m": 2899,
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "n": 2056,
+      "days": 99,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "karamatsu",
+      "name": "唐松岳",
+      "elevation_m": 2696,
+      "station_id": "48141",
+      "station_name": "白馬",
+      "n": 2056,
+      "days": 99,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "nikko_shirane",
+      "name": "日光白根山",
+      "elevation_m": 2578,
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "n": 2052,
+      "days": 99,
+      "share": 0.324,
+      "status": "confirmed"
+     }
+    ]
+   },
+   "provenance": {
+    "generator": "backtest/cloud_calibration_table.py (build)",
+    "exporter": "backtest/mos_export.py",
+    "commit": "423b96819b3f201fee525ce3e200d4793274057a",
+    "dirty": false,
+    "exported": "2026-09-23",
+    "source_sha256": {
+     "backtest/cloud_calibration_table.py": "8fccf87dda1d44ba7fa5798be0765a58d71819ab3bd99d83c7962339d516cbf2",
+     "backtest/trackb_eval.py": "0a527301181bb6bb169e83fa191b1d0740584dc20e45c0afae768564a95b3212",
+     "backtest/quantile_map.py": "7f68f07fcf11e18b431e54b01fd7c581570eabb01e383a9d6c58cb3f63c82aab",
+     "backtest/mos_export.py": "d5580178bc7f52448ca5c20f99025dedd26b0582569eebe1d1d4397f4e13e773",
+     "backtest/config.py": "49a45ed271a12e891bd973dc7cc568d717d5ad9a2303753b576dd1b81ea6a77a"
+    },
+    "legacy_json": {
+     "path": "docs/cloud-calibration-table.json",
+     "commit": "e12a930d82be1ec1d03eb5dffbba47cd47d0c6fe",
+     "built": "2026-09-19",
+     "identical": true
+    }
+   },
+   "n": 6324,
+   "p_all": 0.38,
+   "bins": [
+    {
+     "label": "0",
+     "n": 1227,
+     "p_raw": 0.737,
+     "p": 0.737,
+     "thin": false
+    },
+    {
+     "label": "(0,10]",
+     "n": 1929,
+     "p_raw": 0.492,
+     "p": 0.492,
+     "thin": false
+    },
+    {
+     "label": "(10,20]",
+     "n": 1062,
+     "p_raw": 0.271,
+     "p": 0.271,
+     "thin": false
+    },
+    {
+     "label": "(20,30]",
+     "n": 866,
+     "p_raw": 0.206,
+     "p": 0.206,
+     "thin": false
+    },
+    {
+     "label": "(30,40]",
+     "n": 490,
+     "p_raw": 0.12,
+     "p": 0.12,
+     "thin": false
+    },
+    {
+     "label": "(40,50]",
+     "n": 343,
+     "p_raw": 0.052,
+     "p": 0.052,
+     "thin": false
+    },
+    {
+     "label": "(50,70]",
+     "n": 315,
+     "p_raw": 0.016,
+     "p": 0.016,
+     "thin": false
+    },
+    {
+     "label": "(70,100]",
+     "n": 92,
+     "p_raw": 0.0,
+     "p": 0.0,
+     "thin": false
+    }
+   ],
+   "training_source": {
+    "api": "Single Runs API (00Z runs, lead-controlled)",
+    "levels_hpa": [
+     1000,
+     925,
+     850,
+     700,
+     600
+    ],
+    "n_levels": 5,
+    "note": "900/800hPa are null in Single Runs for both models"
+   },
+   "normalization": {
+    "p_ref": 0.737,
+    "source": "ecmwf_ifs025/h0-48 bin 0 of the v1.5.0 table (Single Runs, 5 levels); unchanged"
+   },
+   "status": "copied unchanged from the v1.5.0 table (R12 does not affect ECMWF: 900/800hPa are null there too)",
+   "copied_from": {
+    "table_set_id": "r1-summit-cloud-sunny",
+    "table_set_version": "1.0.0",
+    "content_sha256": "f8dbda740943fb43e7ffe7af675a7aa4ac2d78a05b85332c29c5dc8ae7e81ff4",
+    "path": "mos_tables/r1-summit-cloud-sunny.json"
+   }
+  },
+  {
+   "table_id": "ecmwf_ifs025/h48-120",
+   "predictor": "cloud_cover_at_summit",
+   "predictor_unit": "%",
+   "predictor_definition": "Open-Meteo pressure-level cloud cover (1000-600hPa) interpolated to the summit elevation linearly in geopotential height each hour (same as the plugin's add_altitude_columns)",
+   "target": "p_sunny",
+   "target_definition": "P(sun1h >= 0.4 h in the hour ending at valid_time)",
+   "model": "ecmwf_ifs025",
+   "lead_hours": [
+    48,
+    120
+   ],
+   "lead_definition": "hours from the run's initial time to valid_time; the table covers [lo, hi). Training grouped lead_day = lead_hours // 24 + 1",
+   "lead_days_legacy": [
+    3,
+    5
+   ],
+   "time_of_day": {
+    "label": "day",
+    "basis": "clock_jst_hour_ending",
+    "hours_jst": [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17
+    ],
+    "source": "backtest/trackb_eval.py DAY_HOURS_JST (hour ending HH:00 JST)"
+   },
+   "season": {
+    "label": "warm",
+    "basis": "valid_month_jst",
+    "months": [
+     6,
+     7,
+     8,
+     9
+    ],
+    "sampled_valid_dates_jst": [
+     "2026-06-14",
+     "2026-09-18"
+    ],
+    "source": "months present in the training sample (no season filter in the training code; tracka_eval.WARM_MONTHS = 4-9 is a different analysis and is not used here)"
+   },
+   "observation": {
+    "kind": "foot_amedas_sun1h",
+    "pairing": "summit forecast vs the foot station's sunshine (representativeness error included)",
+    "event": "sun1h >= 0.4 h",
+    "sources_preference": "etrn_cache preferred over amedas_map at the same hour (trackb_eval.obs_wide)",
+    "stations": [
+     {
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "summit": "adatara"
+     },
+     {
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "summit": "akadake"
+     },
+     {
+      "station_id": "48141",
+      "station_name": "白馬",
+      "summit": "karamatsu"
+     },
+     {
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "summit": "nikko_shirane"
+     }
+    ]
+   },
+   "training_period": {
+    "run_init_utc": [
+     "2026-06-12T00:00:00+00:00",
+     "2026-09-16T00:00:00+00:00"
+    ],
+    "run_hours_utc": [
+     0
+    ],
+    "forecast_value": "mean of T-1h and T (value_h1); applied to single hourly values"
+   },
+   "validated_elevation": {
+    "provisional_rule": {
+     "min_days": 30,
+     "days": "distinct JST dates of valid_time in this table's sample"
+    },
+    "confirmed_m": [
+     2578,
+     2899
+    ],
+    "including_provisional_m": [
+     1700,
+     2899
+    ],
+    "sites": [
+     {
+      "site_id": "adatara",
+      "name": "安達太良山",
+      "elevation_m": 1700,
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "n": 264,
+      "days": 8,
+      "share": 0.027,
+      "status": "provisional"
+     },
+     {
+      "site_id": "akadake",
+      "name": "八ヶ岳(赤岳)",
+      "elevation_m": 2899,
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "n": 3162,
+      "days": 97,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "karamatsu",
+      "name": "唐松岳",
+      "elevation_m": 2696,
+      "station_id": "48141",
+      "station_name": "白馬",
+      "n": 3162,
+      "days": 97,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "nikko_shirane",
+      "name": "日光白根山",
+      "elevation_m": 2578,
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "n": 3156,
+      "days": 97,
+      "share": 0.324,
+      "status": "confirmed"
+     }
+    ]
+   },
+   "provenance": {
+    "generator": "backtest/cloud_calibration_table.py (build)",
+    "exporter": "backtest/mos_export.py",
+    "commit": "423b96819b3f201fee525ce3e200d4793274057a",
+    "dirty": false,
+    "exported": "2026-09-23",
+    "source_sha256": {
+     "backtest/cloud_calibration_table.py": "8fccf87dda1d44ba7fa5798be0765a58d71819ab3bd99d83c7962339d516cbf2",
+     "backtest/trackb_eval.py": "0a527301181bb6bb169e83fa191b1d0740584dc20e45c0afae768564a95b3212",
+     "backtest/quantile_map.py": "7f68f07fcf11e18b431e54b01fd7c581570eabb01e383a9d6c58cb3f63c82aab",
+     "backtest/mos_export.py": "d5580178bc7f52448ca5c20f99025dedd26b0582569eebe1d1d4397f4e13e773",
+     "backtest/config.py": "49a45ed271a12e891bd973dc7cc568d717d5ad9a2303753b576dd1b81ea6a77a"
+    },
+    "legacy_json": {
+     "path": "docs/cloud-calibration-table.json",
+     "commit": "e12a930d82be1ec1d03eb5dffbba47cd47d0c6fe",
+     "built": "2026-09-19",
+     "identical": true
+    }
+   },
+   "n": 9744,
+   "p_all": 0.382,
+   "bins": [
+    {
+     "label": "0",
+     "n": 1737,
+     "p_raw": 0.697,
+     "p": 0.697,
+     "thin": false
+    },
+    {
+     "label": "(0,10]",
+     "n": 3147,
+     "p_raw": 0.485,
+     "p": 0.485,
+     "thin": false
+    },
+    {
+     "label": "(10,20]",
+     "n": 1705,
+     "p_raw": 0.288,
+     "p": 0.288,
+     "thin": false
+    },
+    {
+     "label": "(20,30]",
+     "n": 1213,
+     "p_raw": 0.222,
+     "p": 0.222,
+     "thin": false
+    },
+    {
+     "label": "(30,40]",
+     "n": 806,
+     "p_raw": 0.159,
+     "p": 0.159,
+     "thin": false
+    },
+    {
+     "label": "(40,50]",
+     "n": 541,
+     "p_raw": 0.115,
+     "p": 0.115,
+     "thin": false
+    },
+    {
+     "label": "(50,70]",
+     "n": 478,
+     "p_raw": 0.065,
+     "p": 0.069,
+     "thin": false
+    },
+    {
+     "label": "(70,100]",
+     "n": 117,
+     "p_raw": 0.085,
+     "p": 0.069,
+     "thin": false
+    }
+   ],
+   "training_source": {
+    "api": "Single Runs API (00Z runs, lead-controlled)",
+    "levels_hpa": [
+     1000,
+     925,
+     850,
+     700,
+     600
+    ],
+    "n_levels": 5,
+    "note": "900/800hPa are null in Single Runs for both models"
+   },
+   "normalization": {
+    "p_ref": 0.737,
+    "source": "ecmwf_ifs025/h0-48 bin 0 of the v1.5.0 table (Single Runs, 5 levels); unchanged"
+   },
+   "status": "copied unchanged from the v1.5.0 table (R12 does not affect ECMWF: 900/800hPa are null there too)",
+   "copied_from": {
+    "table_set_id": "r1-summit-cloud-sunny",
+    "table_set_version": "1.0.0",
+    "content_sha256": "f8dbda740943fb43e7ffe7af675a7aa4ac2d78a05b85332c29c5dc8ae7e81ff4",
+    "path": "mos_tables/r1-summit-cloud-sunny.json"
+   }
+  },
+  {
+   "table_id": "ecmwf_ifs025/h120-240",
+   "predictor": "cloud_cover_at_summit",
+   "predictor_unit": "%",
+   "predictor_definition": "Open-Meteo pressure-level cloud cover (1000-600hPa) interpolated to the summit elevation linearly in geopotential height each hour (same as the plugin's add_altitude_columns)",
+   "target": "p_sunny",
+   "target_definition": "P(sun1h >= 0.4 h in the hour ending at valid_time)",
+   "model": "ecmwf_ifs025",
+   "lead_hours": [
+    120,
+    240
+   ],
+   "lead_definition": "hours from the run's initial time to valid_time; the table covers [lo, hi). Training grouped lead_day = lead_hours // 24 + 1",
+   "lead_days_legacy": [
+    6,
+    10
+   ],
+   "time_of_day": {
+    "label": "day",
+    "basis": "clock_jst_hour_ending",
+    "hours_jst": [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17
+    ],
+    "source": "backtest/trackb_eval.py DAY_HOURS_JST (hour ending HH:00 JST)"
+   },
+   "season": {
+    "label": "warm",
+    "basis": "valid_month_jst",
+    "months": [
+     6,
+     7,
+     8,
+     9
+    ],
+    "sampled_valid_dates_jst": [
+     "2026-06-17",
+     "2026-09-18"
+    ],
+    "source": "months present in the training sample (no season filter in the training code; tracka_eval.WARM_MONTHS = 4-9 is a different analysis and is not used here)"
+   },
+   "observation": {
+    "kind": "foot_amedas_sun1h",
+    "pairing": "summit forecast vs the foot station's sunshine (representativeness error included)",
+    "event": "sun1h >= 0.4 h",
+    "sources_preference": "etrn_cache preferred over amedas_map at the same hour (trackb_eval.obs_wide)",
+    "stations": [
+     {
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "summit": "adatara"
+     },
+     {
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "summit": "akadake"
+     },
+     {
+      "station_id": "48141",
+      "station_name": "白馬",
+      "summit": "karamatsu"
+     },
+     {
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "summit": "nikko_shirane"
+     }
+    ]
+   },
+   "training_period": {
+    "run_init_utc": [
+     "2026-06-12T00:00:00+00:00",
+     "2026-09-13T00:00:00+00:00"
+    ],
+    "run_hours_utc": [
+     0
+    ],
+    "forecast_value": "mean of T-1h and T (value_h1); applied to single hourly values"
+   },
+   "validated_elevation": {
+    "provisional_rule": {
+     "min_days": 30,
+     "days": "distinct JST dates of valid_time in this table's sample"
+    },
+    "confirmed_m": [
+     2578,
+     2899
+    ],
+    "including_provisional_m": [
+     1700,
+     2899
+    ],
+    "sites": [
+     {
+      "site_id": "adatara",
+      "name": "安達太良山",
+      "elevation_m": 1700,
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "n": 440,
+      "days": 8,
+      "share": 0.028,
+      "status": "provisional"
+     },
+     {
+      "site_id": "akadake",
+      "name": "八ヶ岳(赤岳)",
+      "elevation_m": 2899,
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "n": 5050,
+      "days": 94,
+      "share": 0.324,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "karamatsu",
+      "name": "唐松岳",
+      "elevation_m": 2696,
+      "station_id": "48141",
+      "station_name": "白馬",
+      "n": 5050,
+      "days": 94,
+      "share": 0.324,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "nikko_shirane",
+      "name": "日光白根山",
+      "elevation_m": 2578,
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "n": 5040,
+      "days": 94,
+      "share": 0.323,
+      "status": "confirmed"
+     }
+    ]
+   },
+   "provenance": {
+    "generator": "backtest/cloud_calibration_table.py (build)",
+    "exporter": "backtest/mos_export.py",
+    "commit": "423b96819b3f201fee525ce3e200d4793274057a",
+    "dirty": false,
+    "exported": "2026-09-23",
+    "source_sha256": {
+     "backtest/cloud_calibration_table.py": "8fccf87dda1d44ba7fa5798be0765a58d71819ab3bd99d83c7962339d516cbf2",
+     "backtest/trackb_eval.py": "0a527301181bb6bb169e83fa191b1d0740584dc20e45c0afae768564a95b3212",
+     "backtest/quantile_map.py": "7f68f07fcf11e18b431e54b01fd7c581570eabb01e383a9d6c58cb3f63c82aab",
+     "backtest/mos_export.py": "d5580178bc7f52448ca5c20f99025dedd26b0582569eebe1d1d4397f4e13e773",
+     "backtest/config.py": "49a45ed271a12e891bd973dc7cc568d717d5ad9a2303753b576dd1b81ea6a77a"
+    },
+    "legacy_json": {
+     "path": "docs/cloud-calibration-table.json",
+     "commit": "e12a930d82be1ec1d03eb5dffbba47cd47d0c6fe",
+     "built": "2026-09-19",
+     "identical": true
+    }
+   },
+   "n": 15580,
+   "p_all": 0.374,
+   "bins": [
+    {
+     "label": "0",
+     "n": 2970,
+     "p_raw": 0.505,
+     "p": 0.505,
+     "thin": false
+    },
+    {
+     "label": "(0,10]",
+     "n": 5162,
+     "p_raw": 0.415,
+     "p": 0.415,
+     "thin": false
+    },
+    {
+     "label": "(10,20]",
+     "n": 2500,
+     "p_raw": 0.3,
+     "p": 0.312,
+     "thin": false
+    },
+    {
+     "label": "(20,30]",
+     "n": 1882,
+     "p_raw": 0.325,
+     "p": 0.312,
+     "thin": false
+    },
+    {
+     "label": "(30,40]",
+     "n": 1389,
+     "p_raw": 0.315,
+     "p": 0.312,
+     "thin": false
+    },
+    {
+     "label": "(40,50]",
+     "n": 844,
+     "p_raw": 0.257,
+     "p": 0.257,
+     "thin": false
+    },
+    {
+     "label": "(50,70]",
+     "n": 663,
+     "p_raw": 0.232,
+     "p": 0.232,
+     "thin": false
+    },
+    {
+     "label": "(70,100]",
+     "n": 170,
+     "p_raw": 0.129,
+     "p": 0.129,
+     "thin": false
+    }
+   ],
+   "training_source": {
+    "api": "Single Runs API (00Z runs, lead-controlled)",
+    "levels_hpa": [
+     1000,
+     925,
+     850,
+     700,
+     600
+    ],
+    "n_levels": 5,
+    "note": "900/800hPa are null in Single Runs for both models"
+   },
+   "normalization": {
+    "p_ref": 0.737,
+    "source": "ecmwf_ifs025/h0-48 bin 0 of the v1.5.0 table (Single Runs, 5 levels); unchanged"
+   },
+   "status": "copied unchanged from the v1.5.0 table (R12 does not affect ECMWF: 900/800hPa are null there too)",
+   "copied_from": {
+    "table_set_id": "r1-summit-cloud-sunny",
+    "table_set_version": "1.0.0",
+    "content_sha256": "f8dbda740943fb43e7ffe7af675a7aa4ac2d78a05b85332c29c5dc8ae7e81ff4",
+    "path": "mos_tables/r1-summit-cloud-sunny.json"
+   }
+  },
+  {
+   "table_id": "jma_msm/h0-48",
+   "predictor": "cloud_cover_at_summit",
+   "predictor_unit": "%",
+   "predictor_definition": "Open-Meteo pressure-level cloud cover interpolated to the summit elevation linearly in geopotential height each hour, using ALL available levels 1000/925/900/850/800/700/600hPa (same as the plugin's Forecast API fetch)",
+   "target": "p_sunny",
+   "target_definition": "P(sun1h >= 0.4 h in the hour ending at valid_time)",
+   "model": "jma_msm",
+   "lead_hours": [
+    0,
+    48
+   ],
+   "lead_definition": "hours from the run's initial time to valid_time; the table covers [lo, hi). Training grouped lead_day = lead_hours // 24 + 1",
+   "lead_days_legacy": [
+    1,
+    2
+   ],
+   "time_of_day": {
+    "label": "day",
+    "basis": "clock_jst_hour_ending",
+    "hours_jst": [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17
+    ],
+    "source": "backtest/trackb_eval.py DAY_HOURS_JST (hour ending HH:00 JST)"
+   },
+   "season": {
+    "label": "warm",
+    "basis": "valid_month_jst",
+    "months": [
+     6,
+     7,
+     8,
+     9
+    ],
+    "sampled_valid_dates_jst": [
+     "2026-06-12",
+     "2026-09-18"
+    ],
+    "source": "months present in the training sample (no season filter in the training code; tracka_eval.WARM_MONTHS = 4-9 is a different analysis and is not used here)"
+   },
+   "observation": {
+    "kind": "foot_amedas_sun1h",
+    "pairing": "summit forecast vs the foot station's sunshine (representativeness error included)",
+    "event": "sun1h >= 0.4 h",
+    "sources_preference": "etrn_cache preferred over amedas_map at the same hour (trackb_eval.obs_wide)",
+    "stations": [
+     {
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "summit": "adatara"
+     },
+     {
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "summit": "akadake"
+     },
+     {
+      "station_id": "48141",
+      "station_name": "白馬",
+      "summit": "karamatsu"
+     },
+     {
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "summit": "nikko_shirane"
+     }
+    ]
+   },
+   "training_period": {
+    "run_init_utc": [
+     "2026-06-12T00:00:00+00:00",
+     "2026-09-17T00:00:00+00:00"
+    ],
+    "run_hours_utc": [
+     0
+    ],
+    "forecast_value": "mean of T-1h and T (value_h1); applied to single hourly values"
+   },
+   "validated_elevation": {
+    "provisional_rule": {
+     "min_days": 30,
+     "days": "distinct JST dates of valid_time in this table's sample"
+    },
+    "confirmed_m": [
+     2578,
+     2899
+    ],
+    "including_provisional_m": [
+     1700,
+     2899
+    ],
+    "sites": [
+     {
+      "site_id": "adatara",
+      "name": "安達太良山",
+      "elevation_m": 1700,
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "n": 160,
+      "days": 8,
+      "share": 0.025,
+      "status": "provisional"
+     },
+     {
+      "site_id": "akadake",
+      "name": "八ヶ岳(赤岳)",
+      "elevation_m": 2899,
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "n": 2056,
+      "days": 99,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "karamatsu",
+      "name": "唐松岳",
+      "elevation_m": 2696,
+      "station_id": "48141",
+      "station_name": "白馬",
+      "n": 2056,
+      "days": 99,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "nikko_shirane",
+      "name": "日光白根山",
+      "elevation_m": 2578,
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "n": 2052,
+      "days": 99,
+      "share": 0.324,
+      "status": "confirmed"
+     }
+    ]
+   },
+   "provenance": {
+    "generator": "backtest/r12_msm_retrain.py (export)",
+    "commit": "4e1060a21343bacdf97d3df9af7f016db05cd985",
+    "dirty": false,
+    "exported": "2026-09-23",
+    "source_sha256": {
+     "backtest/cloud_calibration_table.py": "8fccf87dda1d44ba7fa5798be0765a58d71819ab3bd99d83c7962339d516cbf2",
+     "backtest/trackb_eval.py": "0a527301181bb6bb169e83fa191b1d0740584dc20e45c0afae768564a95b3212",
+     "backtest/quantile_map.py": "7f68f07fcf11e18b431e54b01fd7c581570eabb01e383a9d6c58cb3f63c82aab",
+     "backtest/mos_export.py": "d34d59dfb3430e4b2d9b8f2220a6f5986af839ee5f1b6f20d0f244c3e6988432",
+     "backtest/config.py": "49a45ed271a12e891bd973dc7cc568d717d5ad9a2303753b576dd1b81ea6a77a",
+     "backtest/r12_msm_retrain.py": "323183e81314e788581a913af97f5ea51a8363f6f73fe0f8fe55df602adf975d",
+     "backtest/winter_r1.py": "4a514df1e62bf081e041b553f8b4a0ab1c366a138e976477ead3c65eac3e466e"
+    },
+    "old_table": {
+     "table_set_id": "r1-summit-cloud-sunny",
+     "table_set_version": "1.0.0",
+     "content_sha256": "f8dbda740943fb43e7ffe7af675a7aa4ac2d78a05b85332c29c5dc8ae7e81ff4",
+     "path": "mos_tables/r1-summit-cloud-sunny.json"
+    }
+   },
+   "n": 6324,
+   "p_all": 0.38,
+   "bins": [
+    {
+     "label": "0",
+     "n": 1167,
+     "p_old": 0.719,
+     "ratio_h7_h5": 1.0186,
+     "p": 0.732,
+     "thin": false
+    },
+    {
+     "label": "(0,10]",
+     "n": 1476,
+     "p_old": 0.511,
+     "ratio_h7_h5": 1.2312,
+     "p": 0.629,
+     "thin": false
+    },
+    {
+     "label": "(10,20]",
+     "n": 1192,
+     "p_old": 0.362,
+     "ratio_h7_h5": 1.4401,
+     "p": 0.521,
+     "thin": false
+    },
+    {
+     "label": "(20,30]",
+     "n": 762,
+     "p_old": 0.247,
+     "ratio_h7_h5": 1.4191,
+     "p": 0.351,
+     "thin": false
+    },
+    {
+     "label": "(30,40]",
+     "n": 578,
+     "p_old": 0.149,
+     "ratio_h7_h5": 1.4689,
+     "p": 0.219,
+     "thin": false
+    },
+    {
+     "label": "(40,50]",
+     "n": 440,
+     "p_old": 0.118,
+     "ratio_h7_h5": 1.1833,
+     "p": 0.14,
+     "thin": false
+    },
+    {
+     "label": "(50,70]",
+     "n": 468,
+     "p_old": 0.073,
+     "ratio_h7_h5": 1.1923,
+     "p": 0.087,
+     "thin": false
+    },
+    {
+     "label": "(70,100]",
+     "n": 241,
+     "p_old": 0.071,
+     "ratio_h7_h5": 0.82,
+     "p": 0.058,
+     "thin": false
+    }
+   ],
+   "training_source": {
+    "api": "Single Runs API (absolute level: v1.5.0 jma_msm/h0-48, lead-controlled 0-48h) x Historical Forecast API (7-level / 5-level ratio per bin)",
+    "levels_hpa": [
+     1000,
+     925,
+     900,
+     850,
+     800,
+     700,
+     600
+    ],
+    "n_levels": 7,
+    "note": "旧表 + 面の数の効果の移植 (old table with the level-count effect transplanted)"
+   },
+   "normalization": {
+    "p_ref": 0.732,
+    "source": "this row bin 0 = v1.5.0 jma_msm/h0-48 bin 0 (0.719) x ratio (Historical 7-level / 5-level bin 0), transplanted the same way as the other bins"
+   },
+   "transplant": {
+    "method": "ratio",
+    "base": "r1-summit-cloud-sunny 1.0.0 jma_msm/h0-48 (Single Runs, 5 levels)",
+    "ratio_from": "Historical Forecast API jma_msm PAV tables, 7-level / 5-level, 4 foot sites, the R1 training (site, valid_time) set",
+    "p_h5": [
+     0.807,
+     0.558,
+     0.359,
+     0.241,
+     0.177,
+     0.12,
+     0.052,
+     0.05
+    ],
+    "p_h7": [
+     0.822,
+     0.687,
+     0.517,
+     0.342,
+     0.26,
+     0.142,
+     0.062,
+     0.041
+    ],
+    "ratio_h7_h5": [
+     1.0186,
+     1.2312,
+     1.4401,
+     1.4191,
+     1.4689,
+     1.1833,
+     1.1923,
+     0.82
+    ],
+    "monotone": "PAV after multiplying (no merges were needed when built)"
+   },
+   "status": "旧表 + 面の数の効果の移植 (R12 candidate, transplant). docs/r12-msm-transplant.md",
+   "copied_from": {
+    "table_set_id": "r1-summit-cloud-sunny",
+    "table_set_version": "1.0.0",
+    "content_sha256": "f8dbda740943fb43e7ffe7af675a7aa4ac2d78a05b85332c29c5dc8ae7e81ff4",
+    "path": "mos_tables/r1-summit-cloud-sunny.json"
+   }
+  },
+  {
+   "table_id": "jma_msm/h48-96",
+   "predictor": "cloud_cover_at_summit",
+   "predictor_unit": "%",
+   "predictor_definition": "Open-Meteo pressure-level cloud cover (1000-600hPa) interpolated to the summit elevation linearly in geopotential height each hour (same as the plugin's add_altitude_columns)",
+   "target": "p_sunny",
+   "target_definition": "P(sun1h >= 0.4 h in the hour ending at valid_time)",
+   "model": "jma_msm",
+   "lead_hours": [
+    48,
+    96
+   ],
+   "lead_definition": "hours from the run's initial time to valid_time; the table covers [lo, hi). Training grouped lead_day = lead_hours // 24 + 1",
+   "lead_days_legacy": [
+    3,
+    4
+   ],
+   "time_of_day": {
+    "label": "day",
+    "basis": "clock_jst_hour_ending",
+    "hours_jst": [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17
+    ],
+    "source": "backtest/trackb_eval.py DAY_HOURS_JST (hour ending HH:00 JST)"
+   },
+   "season": {
+    "label": "warm",
+    "basis": "valid_month_jst",
+    "months": [
+     6,
+     7,
+     8,
+     9
+    ],
+    "sampled_valid_dates_jst": [
+     "2026-06-14",
+     "2026-09-18"
+    ],
+    "source": "months present in the training sample (no season filter in the training code; tracka_eval.WARM_MONTHS = 4-9 is a different analysis and is not used here)"
+   },
+   "observation": {
+    "kind": "foot_amedas_sun1h",
+    "pairing": "summit forecast vs the foot station's sunshine (representativeness error included)",
+    "event": "sun1h >= 0.4 h",
+    "sources_preference": "etrn_cache preferred over amedas_map at the same hour (trackb_eval.obs_wide)",
+    "stations": [
+     {
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "summit": "adatara"
+     },
+     {
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "summit": "akadake"
+     },
+     {
+      "station_id": "48141",
+      "station_name": "白馬",
+      "summit": "karamatsu"
+     },
+     {
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "summit": "nikko_shirane"
+     }
+    ]
+   },
+   "training_period": {
+    "run_init_utc": [
+     "2026-06-12T00:00:00+00:00",
+     "2026-09-16T00:00:00+00:00"
+    ],
+    "run_hours_utc": [
+     0
+    ],
+    "forecast_value": "mean of T-1h and T (value_h1); applied to single hourly values"
+   },
+   "validated_elevation": {
+    "provisional_rule": {
+     "min_days": 30,
+     "days": "distinct JST dates of valid_time in this table's sample"
+    },
+    "confirmed_m": [
+     2578,
+     2899
+    ],
+    "including_provisional_m": [
+     1700,
+     2899
+    ],
+    "sites": [
+     {
+      "site_id": "adatara",
+      "name": "安達太良山",
+      "elevation_m": 1700,
+      "station_id": "36196",
+      "station_name": "鷲倉",
+      "n": 160,
+      "days": 8,
+      "share": 0.027,
+      "status": "provisional"
+     },
+     {
+      "site_id": "akadake",
+      "name": "八ヶ岳(赤岳)",
+      "elevation_m": 2899,
+      "station_id": "48571",
+      "station_name": "野辺山",
+      "n": 1929,
+      "days": 97,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "karamatsu",
+      "name": "唐松岳",
+      "elevation_m": 2696,
+      "station_id": "48141",
+      "station_name": "白馬",
+      "n": 1929,
+      "days": 97,
+      "share": 0.325,
+      "status": "confirmed"
+     },
+     {
+      "site_id": "nikko_shirane",
+      "name": "日光白根山",
+      "elevation_m": 2578,
+      "station_id": "41166",
+      "station_name": "奥日光",
+      "n": 1925,
+      "days": 97,
+      "share": 0.324,
+      "status": "confirmed"
+     }
+    ]
+   },
+   "provenance": {
+    "generator": "backtest/cloud_calibration_table.py (build)",
+    "exporter": "backtest/mos_export.py",
+    "commit": "423b96819b3f201fee525ce3e200d4793274057a",
+    "dirty": false,
+    "exported": "2026-09-23",
+    "source_sha256": {
+     "backtest/cloud_calibration_table.py": "8fccf87dda1d44ba7fa5798be0765a58d71819ab3bd99d83c7962339d516cbf2",
+     "backtest/trackb_eval.py": "0a527301181bb6bb169e83fa191b1d0740584dc20e45c0afae768564a95b3212",
+     "backtest/quantile_map.py": "7f68f07fcf11e18b431e54b01fd7c581570eabb01e383a9d6c58cb3f63c82aab",
+     "backtest/mos_export.py": "d5580178bc7f52448ca5c20f99025dedd26b0582569eebe1d1d4397f4e13e773",
+     "backtest/config.py": "49a45ed271a12e891bd973dc7cc568d717d5ad9a2303753b576dd1b81ea6a77a"
+    },
+    "legacy_json": {
+     "path": "docs/cloud-calibration-table.json",
+     "commit": "e12a930d82be1ec1d03eb5dffbba47cd47d0c6fe",
+     "built": "2026-09-19",
+     "identical": true
+    }
+   },
+   "n": 5943,
+   "p_all": 0.383,
+   "bins": [
+    {
+     "label": "0",
+     "n": 1474,
+     "p_raw": 0.585,
+     "p": 0.585,
+     "thin": false
+    },
+    {
+     "label": "(0,10]",
+     "n": 1377,
+     "p_raw": 0.454,
+     "p": 0.454,
+     "thin": false
+    },
+    {
+     "label": "(10,20]",
+     "n": 1073,
+     "p_raw": 0.377,
+     "p": 0.377,
+     "thin": false
+    },
+    {
+     "label": "(20,30]",
+     "n": 645,
+     "p_raw": 0.264,
+     "p": 0.264,
+     "thin": false
+    },
+    {
+     "label": "(30,40]",
+     "n": 470,
+     "p_raw": 0.238,
+     "p": 0.238,
+     "thin": false
+    },
+    {
+     "label": "(40,50]",
+     "n": 355,
+     "p_raw": 0.146,
+     "p": 0.146,
+     "thin": false
+    },
+    {
+     "label": "(50,70]",
+     "n": 373,
+     "p_raw": 0.123,
+     "p": 0.123,
+     "thin": false
+    },
+    {
+     "label": "(70,100]",
+     "n": 176,
+     "p_raw": 0.04,
+     "p": 0.04,
+     "thin": false
+    }
+   ],
+   "training_source": {
+    "api": "Single Runs API (00Z runs, lead-controlled)",
+    "levels_hpa": [
+     1000,
+     925,
+     850,
+     700,
+     600
+    ],
+    "n_levels": 5,
+    "note": "900/800hPa are null in Single Runs for both models"
+   },
+   "normalization": {
+    "p_ref": 0.719,
+    "source": "jma_msm/h0-48 bin 0 of the v1.5.0 table (Single Runs, 5 levels) -- kept so this row's effective values stay identical to v1.5.0; NOT the new h0-48 row's bin 0"
+   },
+   "status": "5 面で学習、未更新 (trained on 5-level summit cloud; not retrained). Input mismatch with the plugin's 7-level interpolation remains for this row; to be rebuilt from Forecast snapshots (7 levels, lead-aware) in 2027-03.",
+   "copied_from": {
+    "table_set_id": "r1-summit-cloud-sunny",
+    "table_set_version": "1.0.0",
+    "content_sha256": "f8dbda740943fb43e7ffe7af675a7aa4ac2d78a05b85332c29c5dc8ae7e81ff4",
+    "path": "mos_tables/r1-summit-cloud-sunny.json"
+   }
+  }
+ ],
+ "content_sha256": "c6105fa2df6013a41a5ea3eb25b7f21440b1f1684dfee6a2e09e5366d757f700"
+}
