@@ -163,9 +163,11 @@ Forecast API のレスポンスにはランの初期時刻が無いので、`fet
 補正ロジックを山固有の処理から切り離した、移植用のモジュール。設計は [docs/mos-module-design.md](docs/mos-module-design.md)。
 最初の題材は R1 (山頂雲量 → P(晴れ) → 本体 v1.5.0 の実効雲量, 案C)。
 
-- `mos/`: 補正の純粋関数 (`parse_table_set` / `select_table` / `calibrate` など)。I/O なし。現在 `mos.MOS_VERSION = "0.1.0"`。
-- `mos_tables/r1-summit-cloud-sunny.json`: R1 の表 (新形式, schema v1)。`python -m backtest.mos_export` で parquet から作り直す
+- `mos/`: 補正の純粋関数 (`parse_table_set` / `select_table` / `calibrate` など)。I/O なし。現在 `mos.MOS_VERSION = "0.2.0"` (schema 1 と 2 を読める)。
+- `mos_tables/r1-summit-cloud-sunny.json`: R1 の表 (新形式, schema v1, `min_mos_version` 0.1.0 = 本体 v1.5.0 と同じ値)。`python -m backtest.mos_export` で parquet から作り直す
   (既存の `docs/cloud-calibration-table.json` と数値が一致しなければ止まる)。
+- `mos_tables/r1-summit-cloud-sunny-msm7.json`: R12 の修正候補 (schema v2, `min_mos_version` 0.2.0)。MSM の d1-2 行だけ 7 面で学習し直し、他の行は上の表を複写
+  (各行に学習データ源・面・正規化の基準値を記録)。`python -m backtest.r12_msm_retrain export`。評価は [docs/r12-msm-retrain.md](docs/r12-msm-retrain.md)。
 - `tests/test_mos.py` (単体)、`tests/test_mos_equivalence.py` (本体 v1.5.0 = `52d3d2a` を `git show` で一時フォルダに取り出して、同一入力で同一出力になることを確認。本体・当該コミットが無ければ skip)。
 
 ```python

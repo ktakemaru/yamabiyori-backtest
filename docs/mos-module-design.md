@@ -156,7 +156,7 @@ tests/test_mos_equivalence.py     本体 v1.5.0 との等価性テスト
 ### 2.2 公開関数 (実装済み)
 
 ```python
-MOS_VERSION = "0.1.0"; SUPPORTED_SCHEMA_VERSIONS = (1,); ON_MISMATCH_CHOICES = ("error", "passthrough", "allow")
+MOS_VERSION = "0.2.0"; SUPPORTED_SCHEMA_VERSIONS = (1, 2); ON_MISMATCH_CHOICES = ("error", "passthrough", "allow")
 
 parse_table_set(doc: dict) -> TableSet                  # json.load 済みの dict を検証。合わなければ SchemaError
 content_sha256(doc: dict) -> str                        # content_sha256 キーを除いた正規化 JSON の SHA-256
@@ -233,6 +233,12 @@ bin_index(edges, value) -> int
 `parse_table_set` が検査するもの: `schema` 名、`schema_version ∈ SUPPORTED_SCHEMA_VERSIONS`、`min_mos_version <= MOS_VERSION`、
 `content_sha256` (手編集・取り違えの検出)、必須キー、ビン数 = `len(edges)`、p ∈ [0, 1]、`time_of_day` / `season` のラベルと数値、
 lead 区間の重なり、`table_id` の重複、fallback 先の存在、各モデルの基準表 (案C の p_ref) の存在と p_ref > 0。
+
+**schema 2 (mos 0.2.0, 2026-09-23 追加)**: R12 の修正で MSM の d1-2 行だけを学習し直すと、schema 1 の「同じモデルの lead 0〜48h 行の 0% ビン」から
+基準値を自動で決める規則では d3-4 行の実効値まで動いてしまう。そこで schema 2 では各行に `normalization: {p_ref, source}` (正規化の基準値とその出どころ) と
+`training_source: {api, levels_hpa}` (学習データ源と面) を必須にし、実効値は行ごとの `p_ref` で計算する (`transform.reference` は任意)。
+schema 2 の表は `min_mos_version: "0.2.0"` とし、mos 0.1.0 は `schema_version` 2 を「未対応」として読み込み時に拒否する (行ごとの基準値を黙って無視しない)。
+schema 1 の表は従来どおり読め、`reference_p` は `table_id` をキーにした (schema 1 では同じモデルの行が同じ値を持つ)。
 
 ### 2.6 新形式の表の生成経路 (実装済み)
 
