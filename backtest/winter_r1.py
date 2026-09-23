@@ -65,15 +65,16 @@ def month_chunks(start: date, end: date) -> list[tuple[date, date]]:
     return out
 
 
-def raw_path(model: str, a: date, b: date) -> Path:
-    return RAW_DIR / model / f"{a:%Y-%m-%d}_{b:%Y-%m-%d}.json.gz"
+def raw_path(model: str, a: date, b: date, raw_dir: Path = None) -> Path:
+    return (raw_dir or RAW_DIR) / model / f"{a:%Y-%m-%d}_{b:%Y-%m-%d}.json.gz"
 
 
-def fetch_chunk(session: requests.Session, model: str, a: date, b: date) -> bool:
-    path = raw_path(model, a, b)
+def fetch_chunk(session: requests.Session, model: str, a: date, b: date, sites=None, raw_dir: Path = None) -> bool:
+    sites = sites or SITES
+    path = raw_path(model, a, b, raw_dir)
     if path.exists():
         return False
-    params = {"latitude": ",".join(str(s["lat"]) for s in SITES), "longitude": ",".join(str(s["lon"]) for s in SITES),
+    params = {"latitude": ",".join(str(s["lat"]) for s in sites), "longitude": ",".join(str(s["lon"]) for s in sites),
               "models": model, "hourly": ",".join(hourly_vars()), "start_date": a.isoformat(), "end_date": b.isoformat(),
               "timezone": "UTC"}
     delay = 10.0
@@ -92,8 +93,8 @@ def fetch_chunk(session: requests.Session, model: str, a: date, b: date) -> bool
         delay = min(delay * 1.5, 60)
     else:
         raise RuntimeError(f"gave up: {model} {a}..{b}")
-    envelope = {"model": model, "start_date": a.isoformat(), "end_date": b.isoformat(), "sites": [s["site_id"] for s in SITES],
-                "site_defs": SITES, "request": params, "url": r.url, "status": r.status_code,
+    envelope = {"model": model, "start_date": a.isoformat(), "end_date": b.isoformat(), "sites": [s["site_id"] for s in sites],
+                "site_defs": sites, "request": params, "url": r.url, "status": r.status_code,
                 "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "body": body}
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
@@ -118,16 +119,16 @@ def fetch_all() -> int:
 
 
 # ---------------------------------------------------------------- 評価
-def load_site_hourly(model: str) -> dict:
+def load_site_hourly(model: str, raw_dir: Path = None) -> dict:
     """site_id -> 本体命名の hourly (チャンクを時刻順に連結)。"""
-    by_site = {s["site_id"]: {} for s in SITES}
-    for path in sorted((RAW_DIR / model).glob("*.json.gz")):
+    by_site = {}
+    for path in sorted(((raw_dir or RAW_DIR) / model).glob("*.json.gz")):
         with gzip.open(path, "rt", encoding="utf-8") as f:
             env = json.load(f)
         for site_id, loc in zip(env["sites"], env["body"]):
             h = si.to_core_naming(loc["hourly"])
             for i, t in enumerate(h["time"]):
-                by_site[site_id][t] = {k: v[i] for k, v in h.items() if k != "time"}
+                by_site.setdefault(site_id, {})[t] = {k: v[i] for k, v in h.items() if k != "time"}
     out = {}
     for site_id, rows in by_site.items():
         times = sorted(rows)
@@ -180,7 +181,7 @@ def add_probs(d: pl.DataFrame, ts) -> pl.DataFrame:
 def bootstrap_diff(g: pl.DataFrame, n_boot: int = N_BOOT, seed: int = SEED) -> tuple[float, float, float]:
     """ΔBrier = Brier(R1) − Brier(生値) の日単位ブロック・ブートストラップ (95% 区間, Δ<0 の割合)。"""
     per_day = (g.with_columns(((pl.col("p_r1") - pl.col("y")) ** 2 - (pl.col("p_raw") - pl.col("y")) ** 2).alias("dsq"))
-               .group_by("date_jst").agg(pl.col("dsq").sum(), pl.len().alias("n")))
+               .group_by("date_jst").agg(pl.col("dsq").sum(), pl.len().alias("n")).sort("date_jst"))   # 並びを固定 (group_by の順は不定)
     dsq, n = per_day["dsq"].to_list(), per_day["n"].to_list()
     rng = random.Random(seed)
     k = len(dsq)
